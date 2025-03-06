@@ -128,3 +128,31 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# 🐍 Python-related files
+__pycache__/
+*.py[cod]
+*.so
+*.pyo
+*.pyd
+*.swp
+
+# 📦 Virtual environment
+venv/
+env/
+*.env
+.env.*
+
+# ⚙️ Django-specific files
+db.sqlite3
+media/
+staticfiles/
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.py,cover
+
+# 🔐 Secrets and environment variables
+config/settings/local.py
