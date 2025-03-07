@@ -1,21 +1,12 @@
-import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
 
-function App() {
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    fetch('/api/test')
-      .then((res) => res.json())
-      .then((data) => setMessage(data.message))
-      .catch((err) => console.error(err));
-  }, []);
-
+export default function App() {
   return (
-    <div>
-      <h1>FinMate</h1>
-      <p>Backend Response: {message}</p>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+      </Routes>
+    </Router>
   );
 }
-
-export default App;
