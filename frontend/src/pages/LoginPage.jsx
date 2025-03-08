@@ -11,21 +11,26 @@ import {
   Text,
   Link,
   useDisclosure,
+  useColorModeValue
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   return (
-    <Flex minH="100vh" align="center" justify="center">
+    <Flex minH="100vh" align="center" justify="center" bg={useColorModeValue('gray.50', 'gray.800')}>
+      <Box position="absolute" top="1rem" right="1rem">
+        <ThemeToggle />
+      </Box>
       <Stack spacing={8} mx="auto" maxW="lg" py={12} px={6}>
         <Stack align="center">
           <Heading fontSize="4xl">Sign in</Heading>
         </Stack>
-        <Box rounded="lg" bg="white" boxShadow="lg" p={8}>
+        <Box rounded="lg" boxShadow="lg" p={8} bg={useColorModeValue('white', 'gray.700')}>
           <Stack spacing={4}>
             <FormControl id="email">
               <FormLabel>Email</FormLabel>

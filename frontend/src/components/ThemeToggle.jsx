@@ -1,4 +1,4 @@
-import { Button, Flex, useColorMode } from "@chakra-ui/react";
+import { Button, Flex, useColorMode, useColorModeValue } from "@chakra-ui/react";
 import { BsSun, BsMoonStarsFill } from "react-icons/bs";
 
 export default function ThemeToggle() {
@@ -8,9 +8,10 @@ export default function ThemeToggle() {
     <Button
       aria-label="Toggle Theme"
       onClick={toggleColorMode}
-      bg="brand.500"
+      bg={useColorModeValue("brand.500", "gray.700")}
       color="white"
-      _hover={{ bg: "brand.600" }}
+      _hover={{ bg: useColorModeValue("gray.700", "brand.500") }}
+      borderRadius={999}
     >
       {colorMode === "light" ? <BsMoonStarsFill /> : <BsSun />}
     </Button>
