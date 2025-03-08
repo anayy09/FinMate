@@ -1,0 +1,817 @@
+
+├── App.css
+├── App.jsx
+├── Progress.txt
+├── components
+│   ├── Carousel.jsx
+│   ├── Features.jsx
+│   ├── Footer.jsx
+│   ├── ForgotPasswordModal.jsx
+│   ├── Hero.jsx
+│   ├── ThemeToggle.jsx
+├── index.css
+├── main.jsx
+├── pages
+│   ├── InformationPage.jsx
+│   ├── LandingPage.jsx
+│   ├── LoginPage.jsx
+│   ├── SignupPage.jsx
+│   ├── VerifyEmailPage.jsx
+├── theme.js
+
+File: App.jsx
+
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import InformationPage from "./pages/InformationPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/info" element={<InformationPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+      </Routes>
+    </Router>
+  );
+}
+
+File: index.css
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+File: main.jsx
+
+// main.jsx
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.jsx";
+import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
+import theme from "./theme";
+
+createRoot(document.getElementById("root")).render(
+  <>
+    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+    <ChakraProvider theme={theme}>
+      <App />
+    </ChakraProvider>
+  </>
+);
+File: theme.js
+
+import { extendTheme } from "@chakra-ui/react";
+
+const theme = extendTheme({
+  colors: {
+    brand: {
+      50: "#e3f9e5",
+      100: "#c1eac5",
+      200: "#a3d9a5",
+      300: "#7bc47f",
+      400: "#57ae5b",
+      500: "#3f9142", // Primary green shade
+      600: "#2f8132",
+      700: "#207227",
+      800: "#0e5814",
+      900: "#05400a",
+    },
+  },
+  fonts: {
+    heading: "'Outfit', sans-serif",
+    body: "'Outfit', sans-serif",
+  },
+  components: {
+    Button: {
+      baseStyle: {
+        fontWeight: "600",
+        rounded: "lg",
+      },
+      variants: {
+        solid: (props) => ({
+          bg: props.colorMode === "dark" ? "brand.500" : "brand.500",
+          color: "white",
+          _hover: {
+            bg: props.colorMode === "dark" ? "brand.600" : "brand.600",
+          },
+        }),
+      },
+    },
+  },
+  config: {
+    initialColorMode: "light",
+    useSystemColorMode: false,
+  },
+});
+
+export default theme;
+
+File: Carousel.jsx
+
+// Carousel.jsx
+import React from "react";
+import {
+  Box,
+  IconButton,
+  Stack,
+  Heading,
+  Text,
+  Container,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { BiLeftArrowAlt, BiRightArrowAlt } from "react-icons/bi";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
+const settings = {
+  dots: true,
+  arrows: false,
+  fade: true,
+  infinite: true,
+  autoplay: true,
+  speed: 500,
+  autoplaySpeed: 5000,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+};
+
+const cards = [
+  {
+    title: "Smart Budgeting",
+    text: "AI-powered budgeting for smarter savings.",
+    image: "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    title: "Track Every Penny",
+    text: "Monitor your expenses like a pro.",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    title: "Financial Freedom",
+    text: "Plan, save, and achieve your goals.",
+    image: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+  },
+];
+
+export default function Carousel() {
+  const [slider, setSlider] = React.useState(null);
+  const bgOverlay = useColorModeValue(
+    "linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.9))",
+    "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.9))"
+  );
+  const headingColor = useColorModeValue("gray.800", "white");
+  const textColor = useColorModeValue("gray.600", "gray.300");
+
+  return (
+    <Box
+      position="relative"
+      height={{ base: "300px", md: "500px" }}
+      width="full"
+      overflow="hidden"
+    >
+      <IconButton
+        aria-label="left-arrow"
+        variant="ghost"
+        position="absolute"
+        left={{ base: "5px", md: "10px" }}
+        top="50%"
+        transform="translateY(-50%)"
+        zIndex={2}
+        onClick={() => slider?.slickPrev()}
+      >
+        <BiLeftArrowAlt size="40px" />
+      </IconButton>
+      <IconButton
+        aria-label="right-arrow"
+        variant="ghost"
+        position="absolute"
+        right={{ base: "5px", md: "10px" }}
+        top="50%"
+        transform="translateY(-50%)"
+        zIndex={2}
+        onClick={() => slider?.slickNext()}
+      >
+        <BiRightArrowAlt size="40px" />
+      </IconButton>
+
+      <Slider {...settings} ref={(slider) => setSlider(slider)}>
+        {cards.map((card, index) => (
+          <Box
+            key={index}
+            height={{ base: "300px", md: "500px" }}
+            position="relative"
+            backgroundPosition="center"
+            backgroundRepeat="no-repeat"
+            backgroundSize="cover"
+            backgroundImage={`url(${card.image})`}
+          >
+            <Box
+              position="absolute"
+              width="100%"
+              height="100%"
+              background={bgOverlay}
+            />
+            <Container size="container.lg" height="100%">
+              <Stack
+                spacing={6}
+                w="full"
+                position="absolute"
+                top="50%"
+                transform="translate(0, -50%)"
+              >
+                <Heading
+                  fontSize={{ base: "2xl", md: "4xl", lg: "5xl" }}
+                  color={headingColor}
+                >
+                  {card.title}
+                </Heading>
+                <Text
+                  fontSize={{ base: "md", lg: "lg" }}
+                  color={textColor}
+                >
+                  {card.text}
+                </Text>
+              </Stack>
+            </Container>
+          </Box>
+        ))}
+      </Slider>
+    </Box>
+  );
+}
+
+File: Features.jsx
+
+import {
+  Box,
+  SimpleGrid,
+  Icon,
+  Text,
+  Stack,
+  Flex,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FcMoneyTransfer, FcBullish, FcPieChart } from "react-icons/fc";
+
+const Feature = ({ title, text, icon }) => {
+  return (
+    <Stack
+      align="center"
+      textAlign="center"
+      p={8}
+      rounded="lg"
+      bg={useColorModeValue("white", "gray.800")}
+      shadow="lg"
+      transition="all 0.3s"
+      _hover={{
+        transform: "translateY(-5px)",
+        shadow: "xl",
+      }}
+    >
+      <Flex
+        w={16}
+        h={16}
+        align="center"
+        justify="center"
+        bg={useColorModeValue("green.50", "green.900")}
+        rounded="full"
+        mb={4}
+      >
+        {icon}
+      </Flex>
+      <Text fontWeight={600} fontSize="lg" mb={2}>
+        {title}
+      </Text>
+      <Text color={useColorModeValue("gray.600", "gray.400")}>{text}</Text>
+    </Stack>
+  );
+};
+
+export default function Features() {
+  return (
+    <Box py={20} px={4}>
+      <SimpleGrid
+        columns={{ base: 1, md: 3 }}
+        spacing={{ base: 8, lg: 12 }}
+        maxW="7xl"
+        mx="auto"
+      >
+        <Feature
+          icon={<Icon as={FcMoneyTransfer} w={10} h={10} />}
+          title="Smart Transactions"
+          text="Track every dollar with AI insights and get real-time updates on your spending patterns."
+        />
+        <Feature
+          icon={<Icon as={FcBullish} w={10} h={10} />}
+          title="Budget Planning"
+          text="Set custom budgets, receive intelligent alerts, and stay on top of your financial goals."
+        />
+        <Feature
+          icon={<Icon as={FcPieChart} w={10} h={10} />}
+          title="Expense Analysis"
+          text="Comprehensive visual analytics and reports to help you understand your spending habits better."
+        />
+      </SimpleGrid>
+    </Box>
+  );
+}
+
+File: Footer.jsx
+
+import {
+  Box,
+  Container,
+  Stack,
+  Text,
+  IconButton,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FaInstagram, FaTwitter, FaYoutube } from "react-icons/fa";
+
+export default function Footer() {
+  return (
+    <Box
+      bg={useColorModeValue("gray.50", "gray.900")}
+      color={useColorModeValue("gray.700", "gray.200")}
+      mt={10}
+    >
+      <Container
+        as={Stack}
+        maxW="6xl"
+        py={4}
+        direction={{ base: "column", md: "row" }}
+        spacing={4}
+        justify={{ base: "center", md: "space-between" }}
+        align={{ base: "center", md: "center" }}
+      >
+        <Text>© 2025 FinMate. All rights reserved.</Text>
+        <Stack direction="row" spacing={6}>
+          <IconButton
+            aria-label="Twitter"
+            icon={<FaTwitter />}
+            size="sm"
+            color="current"
+            variant="ghost"
+          />
+          <IconButton
+            aria-label="YouTube"
+            icon={<FaYoutube />}
+            size="sm"
+            color="current"
+            variant="ghost"
+          />
+          <IconButton
+            aria-label="Instagram"
+            icon={<FaInstagram />}
+            size="sm"
+            color="current"
+            variant="ghost"
+          />
+        </Stack>
+      </Container>
+    </Box>
+  );
+}
+File: ForgotPasswordModal.jsx
+
+import {
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalBody,
+    ModalCloseButton,
+    FormControl,
+    FormLabel,
+    Input,
+    Button,
+    Stack,
+  } from "@chakra-ui/react";
+  
+  export default function ForgotPasswordModal({ isOpen, onClose }) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Forgot Password?</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Stack spacing={4}>
+              <FormControl>
+                <FormLabel>Email Address</FormLabel>
+                <Input type="email" />
+              </FormControl>
+              <Button colorScheme="blue">Request Reset</Button>
+            </Stack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    );
+  }
+  
+File: Hero.jsx
+
+import { Box, Heading, Container, Text, Button, Stack } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+
+export default function Hero() {
+  const navigate = useNavigate();
+  return (
+    <Container maxW={"3xl"} textAlign={"center"} py={20}>
+      <Stack spacing={8}>
+        <Heading
+          fontSize={{ base: "2xl", sm: "4xl", md: "6xl" }}
+          fontWeight={600}
+        >
+          Manage Your{" "}
+          <Text as={"span"} color={"green.400"}>
+            Finances
+          </Text>{" "}
+          Smartly
+        </Heading>
+        <Text color={"gray.500"}>
+          Track your expenses, analyze spending habits, and get AI-driven
+          financial insights to save more.
+        </Text>
+        <Stack direction={"row"} justify={"center"} spacing={6}>
+          <Button
+            colorScheme={"green"}
+            size="lg"
+            onClick={() => navigate("/login")}
+          >
+            Join Now
+          </Button>
+          <Button
+            variant={"outline"}
+            colorScheme={"green"}
+            size="lg"
+            onClick={() => navigate("/info")}
+          >
+            Learn More
+          </Button>
+        </Stack>
+      </Stack>
+    </Container>
+  );
+}
+
+File: ThemeToggle.jsx
+
+import { Button, Flex, useColorMode, useColorModeValue } from "@chakra-ui/react";
+import { BsSun, BsMoonStarsFill } from "react-icons/bs";
+
+export default function ThemeToggle() {
+  const { colorMode, toggleColorMode } = useColorMode();
+
+  return (
+    <Button
+      aria-label="Toggle Theme"
+      onClick={toggleColorMode}
+      bg={useColorModeValue("brand.500", "gray.700")}
+      color="white"
+      _hover={{ bg: useColorModeValue("gray.700", "brand.500") }}
+      borderRadius={999}
+    >
+      {colorMode === "light" ? <BsMoonStarsFill /> : <BsSun />}
+    </Button>
+  );
+}
+
+File: InformationPage.jsx
+
+import {
+    Box,
+    SimpleGrid,
+    Icon,
+    Text,
+    Stack,
+    Flex,
+    useColorModeValue,
+  } from "@chakra-ui/react";
+  import { FcMoneyTransfer, FcBullish, FcPieChart } from "react-icons/fc";
+  
+  const Feature = ({ title, text, icon }) => {
+    return (
+      <Stack
+        align="center"
+        textAlign="center"
+        p={8}
+        rounded="lg"
+        bg={useColorModeValue("white", "gray.800")}
+        shadow="lg"
+        transition="all 0.3s"
+        _hover={{
+          transform: "translateY(-5px)",
+          shadow: "xl",
+        }}
+      >
+        <Flex
+          w={16}
+          h={16}
+          align="center"
+          justify="center"
+          bg={useColorModeValue("green.50", "green.900")}
+          rounded="full"
+          mb={4}
+        >
+          {icon}
+        </Flex>
+        <Text fontWeight={600} fontSize="lg" mb={2}>
+          {title}
+        </Text>
+        <Text color={useColorModeValue("gray.600", "gray.400")}>{text}</Text>
+      </Stack>
+    );
+  };
+  
+  export default function InformationPage() {
+    return (
+      <Box py={20} px={4}>
+        <SimpleGrid
+          columns={{ base: 1, md: 3 }}
+          spacing={{ base: 8, lg: 12 }}
+          maxW="7xl"
+          mx="auto"
+        >
+          <Feature
+            icon={<Icon as={FcMoneyTransfer} w={10} h={10} />}
+            title="Smart Transactions"
+            text="Track every dollar with AI insights and get real-time updates on your spending patterns."
+          />
+          <Feature
+            icon={<Icon as={FcBullish} w={10} h={10} />}
+            title="Budget Planning"
+            text="Set custom budgets, receive intelligent alerts, and stay on top of your financial goals."
+          />
+          <Feature
+            icon={<Icon as={FcPieChart} w={10} h={10} />}
+            title="Expense Analysis"
+            text="Comprehensive visual analytics and reports to help you understand your spending habits better."
+          />
+        </SimpleGrid>
+      </Box>
+    );
+  }
+  
+File: LandingPage.jsx
+
+import { Box, Container, VStack } from "@chakra-ui/react";
+import Hero from "../components/Hero";
+import Features from "../components/Features";
+import Footer from "../components/Footer";
+import Carousel from "../components/Carousel";
+import ThemeToggle from "../components/ThemeToggle";
+
+export default function LandingPage() {
+  return (
+    <Box>
+      <Box position="absolute" top="1rem" right="1rem">
+        <ThemeToggle />
+      </Box>
+      <Container maxW="container. xl">
+        <VStack>
+          <Hero />
+          <Features />
+          <Carousel />
+        </VStack>
+      </Container>
+      <Footer />
+    </Box>
+  );
+}
+
+File: LoginPage.jsx
+
+import {
+  Flex,
+  Box,
+  FormControl,
+  FormLabel,
+  Input,
+  Checkbox,
+  Stack,
+  Button,
+  Heading,
+  Text,
+  Link,
+  useDisclosure,
+  useColorModeValue
+} from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
+import ThemeToggle from "../components/ThemeToggle";
+
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  return (
+    <Flex minH="100vh" align="center" justify="center" bg={useColorModeValue('gray.50', 'gray.800')}>
+      <Box position="absolute" top="1rem" right="1rem">
+        <ThemeToggle />
+      </Box>
+      <Stack spacing={8} mx="auto" maxW="lg" py={12} px={6}>
+        <Stack align="center">
+          <Heading fontSize="4xl">Sign in</Heading>
+        </Stack>
+        <Box rounded="lg" boxShadow="lg" p={8} bg={useColorModeValue('white', 'gray.700')}>
+          <Stack spacing={4}>
+            <FormControl id="email">
+              <FormLabel>Email</FormLabel>
+              <Input type="email" />
+            </FormControl>
+            <FormControl id="password">
+              <FormLabel>Password</FormLabel>
+              <Input type="password" />
+            </FormControl>
+            <Stack spacing={6}>
+              <Stack direction="row" align="start" justify="space-between">
+                <Checkbox>Remember me</Checkbox>
+                <Text color="brand.500" cursor="pointer" onClick={onOpen}>
+                  Forgot password?
+                </Text>
+              </Stack>
+              <Button bg="brand.500" color="white" _hover={{ bg: "brand.600" }}>
+                Sign in
+              </Button>
+            </Stack>
+            <Text align="center">
+              New User?{" "}
+              <Link color="brand.500" onClick={() => navigate("/signup")}>
+                Sign up here
+              </Link>
+            </Text>
+          </Stack>
+        </Box>
+      </Stack>
+      <ForgotPasswordModal isOpen={isOpen} onClose={onClose} />
+    </Flex>
+  );
+}
+
+File: SignupPage.jsx
+
+import {
+  Flex,
+  Box,
+  FormControl,
+  FormLabel,
+  Input,
+  InputGroup,
+  HStack,
+  InputRightElement,
+  Stack,
+  Button,
+  Heading,
+  Text,
+  Link,
+  useColorModeValue
+} from "@chakra-ui/react";
+import { useState } from "react";
+import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
+import { useNavigate } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
+
+export default function SignupPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+
+  return (
+    <Flex minH="100vh" align="center" justify="center" bg={useColorModeValue('gray.50', 'gray.800')}>
+      <Box position="absolute" top="1rem" right="1rem">
+        <ThemeToggle />
+      </Box>
+      <Stack spacing={8} mx="auto" maxW="lg" py={12} px={6}>
+        <Stack align="center">
+          <Heading fontSize="4xl">Sign up</Heading>
+        </Stack>
+        <Box rounded="lg" bg={useColorModeValue('white', 'gray.700')}  boxShadow="lg" p={8}>
+          <Stack spacing={4}>
+            <HStack>
+              <Box>
+                <FormControl id="firstName" isRequired>
+                  <FormLabel>First Name</FormLabel>
+                  <Input type="text" />
+                </FormControl>
+              </Box>
+              <Box>
+                <FormControl id="lastName">
+                  <FormLabel>Last Name</FormLabel>
+                  <Input type="text" />
+                </FormControl>
+              </Box>
+            </HStack>
+            <FormControl id="email" isRequired>
+              <FormLabel>Email</FormLabel>
+              <Input type="email" />
+            </FormControl>
+            <FormControl id="password" isRequired>
+              <FormLabel>Password</FormLabel>
+              <InputGroup>
+                <Input type={showPassword ? "text" : "password"} />
+                <InputRightElement h="full">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  >
+                    {showPassword ? <ViewIcon /> : <ViewOffIcon />}
+                  </Button>
+                </InputRightElement>
+              </InputGroup>
+            </FormControl>
+            <Stack spacing={6} pt={2}>
+              <Button
+                size="lg"
+                bg="brand.500"
+                color="white"
+                _hover={{ bg: "brand.600" }}
+                onClick={() => navigate("/verify-email")}
+              >
+                Sign up
+              </Button>
+            </Stack>
+            <Text align="center">
+              Already a user?{" "}
+              <Link color="brand.500" onClick={() => navigate("/login")}>
+                Login
+              </Link>
+            </Text>
+          </Stack>
+        </Box>
+      </Stack>
+    </Flex>
+  );
+}
+
+File: VerifyEmailPage.jsx
+
+import {
+  Center,
+  Heading,
+  Button,
+  FormControl,
+  Flex,
+  Stack,
+  HStack,
+  Box,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { PinInput, PinInputField } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
+
+export default function VerifyEmailPage() {
+  const navigate = useNavigate();
+
+  return (
+    <Flex minH="100vh" align="center" justify="center" bg={useColorModeValue("gray.50", "gray.800")}>
+      <Box position="absolute" top="1rem" right="1rem">
+        <ThemeToggle />
+      </Box>
+      <Stack
+        spacing={4}
+        w="full"
+        maxW="sm"
+        bg={useColorModeValue("white", "gray.700")}
+        rounded="xl"
+        boxShadow="lg"
+        p={6}
+        my={10}
+      >
+        <Center>
+          <Heading fontSize="2xl">Verify your Email</Heading>
+        </Center>
+        <Center fontSize="md" fontWeight="bold">
+          We have sent a code to your email
+        </Center>
+        <FormControl>
+          <Center>
+            <HStack>
+              <PinInput>
+                <PinInputField />
+                <PinInputField />
+                <PinInputField />
+                <PinInputField />
+              </PinInput>
+            </HStack>
+          </Center>
+        </FormControl>
+        <Stack spacing={6}>
+          <Button
+            bg="brand.500"
+            color="white"
+            _hover={{ bg: "brand.600" }}
+            onClick={() => navigate("/login")}
+          >
+            Verify
+          </Button>
+        </Stack>
+      </Stack>
+    </Flex>
+  );
+}

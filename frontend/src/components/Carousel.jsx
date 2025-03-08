@@ -59,6 +59,8 @@ export default function Carousel() {
       height={{ base: "300px", md: "500px" }}
       width="full"
       overflow="hidden"
+      my={10}
+      borderRadius={20}
     >
       <IconButton
         aria-label="left-arrow"

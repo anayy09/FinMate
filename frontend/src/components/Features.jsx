@@ -15,9 +15,9 @@ const Feature = ({ title, text, icon }) => {
       align="center"
       textAlign="center"
       p={8}
-      rounded="lg"
-      bg={useColorModeValue("white", "gray.800")}
-      shadow="lg"
+      borderRadius={20}
+      bg={useColorModeValue("white", "gray.700")}
+      shadow="xl"
       transition="all 0.3s"
       _hover={{
         transform: "translateY(-5px)",
@@ -45,7 +45,7 @@ const Feature = ({ title, text, icon }) => {
 
 export default function Features() {
   return (
-    <Box py={20} px={4}>
+    <Box py={10} px={4}>
       <SimpleGrid
         columns={{ base: 1, md: 3 }}
         spacing={{ base: 8, lg: 12 }}

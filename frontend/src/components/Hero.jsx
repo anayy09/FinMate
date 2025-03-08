@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function Hero() {
   const navigate = useNavigate();
   return (
-    <Container maxW={"3xl"} textAlign={"center"} py={20}>
+    <Container maxW={"3xl"} textAlign={"center"} py={10}>
       <Stack spacing={8}>
         <Heading
           fontSize={{ base: "2xl", sm: "4xl", md: "6xl" }}
