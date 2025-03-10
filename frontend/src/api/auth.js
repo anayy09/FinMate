@@ -40,7 +40,19 @@ export const logout = async () => {
 // Request Password Reset API call
 export const requestPasswordReset = async (email) => {
   try {
-    const response = await authApi.post("/password-reset/", { email });
+    const response = await authApi.post("/password-reset-request/", { email });
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
+};
+
+// Reset Password API call
+export const resetPassword = async (token, password) => {
+  try {
+    const response = await authApi.post(`/password-reset/${token}/`, {
+      password,
+    });
     return response.data;
   } catch (error) {
     throw error.response.data;
@@ -50,7 +62,7 @@ export const requestPasswordReset = async (email) => {
 // Verify Email API call
 export const verifyEmail = async (token) => {
   try {
-    const response = await authApi.post("/verify-email/", { token });
+    const response = await authApi.get(`/verify-email/${token}`);
     return response.data;
   } catch (error) {
     throw error.response.data;

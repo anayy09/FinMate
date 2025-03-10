@@ -76,7 +76,7 @@ class SignupView(generics.CreateAPIView):
     
 class VerifyEmailView(APIView):
     """API to verify a user's email."""
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
 
     def get(self, request, token):
         user = get_object_or_404(User, verification_token=token)
@@ -84,6 +84,7 @@ class VerifyEmailView(APIView):
             return Response({"message": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
         user.email_verified = True
         user.is_active = True
+        user.verification_token = uuid.uuid4()
         user.save()
         return Response({"message": "Email verified successfully"}, status=status.HTTP_200_OK)
     

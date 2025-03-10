@@ -24,10 +24,10 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
     setLoading(true);
     try {
       await requestPasswordReset(email);
-      toast({ title: "Check your email for reset instructions", status: "success", duration: 4000 });
+      toast({ title: "Check your email for reset instructions", status: "success" });
       onClose();
     } catch (error) {
-      toast({ title: "Reset failed", description: error.message, status: "error", duration: 3000 });
+      toast({ title: "Reset failed", description: error.message, status: "error" });
     }
     setLoading(false);
   };

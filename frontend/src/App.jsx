@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import InformationPage from "./pages/InformationPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import PasswordResetPage from "./pages/PasswordResetPage";
 
 export default function App() {
   return (
@@ -13,7 +14,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/info" element={<InformationPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+        <Route path="/password-reset/:token" element={<PasswordResetPage />} />
       </Routes>
     </Router>
   );
