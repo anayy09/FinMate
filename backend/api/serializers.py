@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Category, Account, Transaction, Budget, RecurringTransaction
+from .notification_models import (
+    NotificationPreference, Notification, BudgetAlert, 
+    AIInsight, SavingsGoal
+)
 from decimal import Decimal
 
 User = get_user_model()
@@ -162,3 +166,115 @@ class CategoryAnalyticsSerializer(serializers.Serializer):
     transaction_count = serializers.IntegerField()
     percentage = serializers.FloatField()
     color = serializers.CharField()
+
+# Notification and AI Insight Serializers
+class NotificationPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for notification preferences."""
+    
+    class Meta:
+        model = NotificationPreference
+        fields = [
+            'id', 'notification_type', 'is_enabled', 'delivery_method',
+            'budget_alert_threshold', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for notifications."""
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'notification_type', 'title', 'message', 'status',
+            'sent_at', 'read_at', 'data', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'sent_at']
+
+class AIInsightSerializer(serializers.ModelSerializer):
+    """Serializer for AI insights."""
+    
+    class Meta:
+        model = AIInsight
+        fields = [
+            'id', 'insight_type', 'title', 'description', 'data',
+            'confidence_score', 'is_actionable', 'action_taken',
+            'action_date', 'is_relevant', 'feedback', 'created_at'
+        ]
+        read_only_fields = ['created_at']
+
+class SavingsGoalSerializer(serializers.ModelSerializer):
+    """Serializer for savings goals."""
+    target_categories = CategorySerializer(many=True, read_only=True)
+    target_category_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+    
+    class Meta:
+        model = SavingsGoal
+        fields = [
+            'id', 'title', 'description', 'target_amount', 'current_amount',
+            'target_date', 'target_categories', 'target_category_ids',
+            'status', 'progress_percentage', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['progress_percentage', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+        target_category_ids = validated_data.pop('target_category_ids', [])
+        goal = SavingsGoal.objects.create(**validated_data)
+        
+        if target_category_ids:
+            categories = Category.objects.filter(id__in=target_category_ids)
+            goal.target_categories.set(categories)
+        
+        return goal
+    
+    def update(self, instance, validated_data):
+        target_category_ids = validated_data.pop('target_category_ids', None)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if target_category_ids is not None:
+            categories = Category.objects.filter(id__in=target_category_ids)
+            instance.target_categories.set(categories)
+        
+        return instance
+
+class BudgetAlertSerializer(serializers.ModelSerializer):
+    """Serializer for budget alerts."""
+    budget_category = serializers.CharField(source='budget.category.name', read_only=True)
+    
+    class Meta:
+        model = BudgetAlert
+        fields = [
+            'id', 'alert_type', 'month', 'is_sent', 'sent_at',
+            'budget_category', 'created_at'
+        ]
+        read_only_fields = ['created_at', 'is_sent', 'sent_at']
+
+class ExpensePredictionSerializer(serializers.Serializer):
+    """Serializer for expense predictions."""
+    total_monthly_prediction = serializers.DecimalField(max_digits=12, decimal_places=2)
+    daily_predictions = serializers.ListField(child=serializers.DictField())
+    category = serializers.CharField()
+    confidence_score = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+class SpendingInsightSerializer(serializers.Serializer):
+    """Serializer for spending insights."""
+    insight_type = serializers.CharField()
+    title = serializers.CharField()
+    message = serializers.CharField()
+    data = serializers.DictField()
+    confidence_score = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+class WeeklySummarySerializer(serializers.Serializer):
+    """Serializer for weekly summary data."""
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    total_income = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total_expenses = serializers.DecimalField(max_digits=12, decimal_places=2)
+    net_cash_flow = serializers.DecimalField(max_digits=12, decimal_places=2)
+    top_categories = serializers.DictField()
+    transaction_count = serializers.IntegerField()
+    comparison_previous_week = serializers.DictField(required=False)
