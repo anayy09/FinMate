@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -122,7 +124,7 @@ class Transaction(models.Model):
     
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
-    description = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     
     transaction_date = models.DateField()
@@ -209,3 +211,16 @@ class RecurringTransaction(models.Model):
 
     def __str__(self):
         return f"{self.description} - ${self.amount} ({self.frequency})"
+
+# Signal to create default account for new users
+@receiver(post_save, sender=User)
+def create_default_account(sender, instance, created, **kwargs):
+    """Create a default account when a new user is created."""
+    if created:
+        Account.objects.create(
+            user=instance,
+            name="Default Account",
+            account_type="checking",
+            balance=Decimal('0.00'),
+            currency="USD"
+        )
