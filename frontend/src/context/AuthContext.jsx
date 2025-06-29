@@ -5,28 +5,62 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const initializeAuth = () => {
+      const storedUser = localStorage.getItem("user");
+      const accessToken = localStorage.getItem("access_token");
+      
+      if (storedUser && accessToken) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
+          localStorage.removeItem("user");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const handleLogin = async (credentials) => {
-    const userData = await login(credentials);
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    try {
+      const response = await login(credentials);
+      
+      if (response.requires_2fa) {
+        return response; // Return for 2FA handling
+      }
+      
+      if (response.user) {
+        setUser(response.user);
+        localStorage.setItem("user", JSON.stringify(response.user));
+      }
+      return response;
+    } catch (error) {
+      throw error;
+    }
   };
 
   const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    localStorage.removeItem("user");
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, handleLogin, handleLogout }}>
+    <AuthContext.Provider value={{ user, setUser, handleLogin, handleLogout, loading }}>
       {children}
     </AuthContext.Provider>
   );

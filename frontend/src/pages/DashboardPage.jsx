@@ -17,11 +17,24 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const bg = useColorModeValue("gray.50", "gray.800");
   const cardBg = useColorModeValue("white", "gray.700");
 
+  // Show loading state while authentication is being checked
+  if (loading) {
+    return (
+      <Box minH="100vh" bg={bg}>
+        <Navbar />
+        <Flex justify="center" align="center" minH="80vh">
+          <Text>Loading...</Text>
+        </Flex>
+      </Box>
+    );
+  }
+
+  // Redirect to login if user is not authenticated
   if (!user) {
     navigate("/login");
     return null;

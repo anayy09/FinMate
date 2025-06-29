@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import PageTransition from "../components/PageTransition";
 import Navbar from "../components/Navbar";
-import { login } from "../api/auth";
+import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -30,8 +30,9 @@ export default function LoginPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { handleLogin } = useAuth();
 
-  const handleLogin = async () => {
+  const handleLoginSubmit = async () => {
     setLoading(true);
     try {
       const loginData = { email, password };
@@ -39,7 +40,7 @@ export default function LoginPage() {
         loginData.two_factor_token = twoFactorToken;
       }
       
-      const response = await login(loginData);
+      const response = await handleLogin(loginData);
       
       if (response.requires_2fa) {
         setRequires2FA(true);
@@ -127,7 +128,7 @@ export default function LoginPage() {
                   bg="brand.500"
                   color="white"
                   _hover={{ bg: "brand.600" }}
-                  onClick={handleLogin}
+                  onClick={handleLoginSubmit}
                 >
                 Sign in
               </Button>
