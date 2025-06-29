@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import (
-    UserSerializer, LoginSerializer, CategorySerializer, AccountSerializer,
+    UserSerializer, UserProfileSerializer, LoginSerializer, CategorySerializer, AccountSerializer,
     TransactionSerializer, BudgetSerializer, RecurringTransactionSerializer,
     NotificationSerializer, NotificationPreferenceSerializer, AIInsightSerializer,
     SavingsGoalSerializer, ExpensePredictionSerializer, WeeklySummarySerializer
@@ -263,6 +263,28 @@ class Disable2FAView(APIView):
         user.save()
         
         return Response({"message": "2FA disabled successfully"}, status=status.HTTP_200_OK)
+
+class UserProfileView(APIView):
+    """User profile management view."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get user profile data."""
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        """Update user profile data."""
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Profile updated successfully",
+                "user": serializer.data
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Transaction Management Views
 # Removed duplicate import - already imported at the top

@@ -20,6 +20,33 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Comprehensive serializer for user profile management."""
+    date_joined = serializers.DateTimeField(source='created_at', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'name', 'phone', 'bio', 'location', 
+            'date_of_birth', 'occupation', 'preferred_currency', 
+            'avatar', 'is_premium', 'two_factor_enabled', 
+            'created_at', 'date_joined', 'last_login', 'is_active'
+        ]
+        read_only_fields = ['id', 'created_at', 'date_joined', 'last_login', 'is_active', 'is_premium']
+    
+    def validate_email(self, value):
+        """Validate email uniqueness for updates."""
+        user = self.instance
+        if user and User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+    
+    def validate_phone(self, value):
+        """Basic phone number validation."""
+        if value and len(value.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')) < 10:
+            raise serializers.ValidationError("Please enter a valid phone number.")
+        return value
+
 class LoginSerializer(serializers.Serializer):
     """Serializer for login validation."""
     email = serializers.EmailField()

@@ -37,6 +37,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
     
+    # Profile fields
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=100, blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    occupation = models.CharField(max_length=100, blank=True, null=True)
+    preferred_currency = models.CharField(max_length=3, default='USD')
+    avatar = models.URLField(blank=True, null=True)
+    is_premium = models.BooleanField(default=False)
+    
     # Sprint 4: Report preferences
     report_email_frequency = models.CharField(max_length=20, choices=[
         ('never', 'Never'),
