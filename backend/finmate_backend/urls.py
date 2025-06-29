@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from api.views import (
     SignupView, LoginView, LogoutView, VerifyEmailView, ActiveSessionsView, 
     LogoutDeviceView, PasswordResetView, PasswordResetRequestView,
-    Setup2FAView, Verify2FAView, Disable2FAView,
+    Setup2FAView, Verify2FAView, Disable2FAView, UserProfileView,
     CategoryViewSet, AccountViewSet, TransactionViewSet, BudgetViewSet, RecurringTransactionViewSet,
     NotificationViewSet, NotificationPreferenceViewSet, AIInsightViewSet, 
     SavingsGoalViewSet, ExpensePredictionView, AnomalyDetectionView,
@@ -39,6 +39,7 @@ urlpatterns = [
     path("api/auth/verify-email/<str:token>/", VerifyEmailView.as_view(), name="verify_email"),
     path("api/user/sessions/", ActiveSessionsView.as_view(), name="active-sessions"),
     path("api/user/logout-device/", LogoutDeviceView.as_view(), name="logout-device"),
+    path("api/user/profile/", UserProfileView.as_view(), name="user-profile"),
     path('api/auth/password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('api/auth/password-reset/<str:token>/', PasswordResetView.as_view(), name='password_reset'),
     path('api/auth/setup-2fa/', Setup2FAView.as_view(), name='setup_2fa'),
