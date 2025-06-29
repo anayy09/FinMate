@@ -256,3 +256,9 @@ def create_default_account(sender, instance, created, **kwargs):
             balance=Decimal('0.00'),
             currency="USD"
         )
+
+# Import notification models
+from .notification_models import (
+    NotificationPreference, Notification, BudgetAlert, 
+    AIInsight, SavingsGoal
+)
