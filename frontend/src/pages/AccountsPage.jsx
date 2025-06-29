@@ -306,7 +306,7 @@ const AccountsPage = () => {
                 </Text>
               </VStack>
               <HStack spacing={3}>
-                <PlaidIntegration onAccountConnected={fetchAccounts} />
+                {/* <PlaidIntegration onAccountConnected={fetchAccounts} /> */}
                 <Button
                   leftIcon={<AddIcon />}
                   colorScheme="blue"
