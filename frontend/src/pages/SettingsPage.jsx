@@ -38,11 +38,30 @@ import {
   Flex,
   IconButton,
   Divider,
+  Select,
+  Switch,
+  SimpleGrid,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  Progress,
 } from "@chakra-ui/react";
-import { FaTrash, FaMobile, FaDesktop, FaTablet } from "react-icons/fa";
+import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import axios from "axios";
+import { 
+  getBankAccounts, 
+  updateBankAccountSettings, 
+  disconnectBankAccount,
+  triggerPlaidSync,
+  getPlaidSyncStatus,
+  downloadReport,
+  emailReport,
+  getReportTypes,
+  updateReportSettings
+} from "../api/reports";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
@@ -69,10 +88,70 @@ export default function SettingsPage() {
   // Modals
   const { isOpen: isDisable2FAOpen, onOpen: onDisable2FAOpen, onClose: onDisable2FAClose } = useDisclosure();
   const [disablePassword, setDisablePassword] = useState("");
+  
+  // Bank Accounts states
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [syncStatus, setSyncStatus] = useState({});
+  const [isLoadingBankAccounts, setIsLoadingBankAccounts] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Reports states
+  const [reportSettings, setReportSettings] = useState({
+    frequency: 'monthly',
+    autoSync: true,
+    emailReports: true
+  });
+  const [reportTypes, setReportTypes] = useState({});
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   useEffect(() => {
     fetchSessions();
+    fetchBankAccounts();
+    fetchReportTypes();
+    loadReportSettings();
   }, []);
+
+  // Fetch bank accounts
+  const fetchBankAccounts = async () => {
+    setIsLoadingBankAccounts(true);
+    try {
+      const data = await getBankAccounts();
+      setBankAccounts(data.accounts || []);
+      
+      // Get sync status
+      const syncData = await getPlaidSyncStatus();
+      setSyncStatus(syncData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load bank accounts",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoadingBankAccounts(false);
+    }
+  };
+
+  // Fetch report types
+  const fetchReportTypes = async () => {
+    try {
+      const data = await getReportTypes();
+      setReportTypes(data);
+    } catch (error) {
+      console.error('Error fetching report types:', error);
+    }
+  };
+
+  // Load report settings
+  const loadReportSettings = () => {
+    // Load from user preferences or localStorage
+    const savedSettings = localStorage.getItem('reportSettings');
+    if (savedSettings) {
+      setReportSettings(JSON.parse(savedSettings));
+    }
+  };
 
   const fetchSessions = async () => {
     setIsLoadingSessions(true);
@@ -214,6 +293,192 @@ export default function SettingsPage() {
     return FaDesktop;
   };
 
+  // Bank Account Management Functions
+  const handleSyncAccount = async (accountId) => {
+    try {
+      setIsSyncing(true);
+      await triggerPlaidSync(accountId, false);
+      toast({
+        title: "Success",
+        description: "Account sync started",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refresh bank accounts after sync
+      setTimeout(() => {
+        fetchBankAccounts();
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sync account",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    try {
+      setIsSyncing(true);
+      await triggerPlaidSync(null, false);
+      toast({
+        title: "Success",
+        description: "Syncing all accounts started",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refresh bank accounts after sync
+      setTimeout(() => {
+        fetchBankAccounts();
+      }, 3000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sync accounts",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleUpdateSyncSettings = async (accountId, settings) => {
+    try {
+      await updateBankAccountSettings(accountId, settings);
+      toast({
+        title: "Success",
+        description: "Account settings updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchBankAccounts();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update settings",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleDisconnectAccount = async (accountId) => {
+    if (window.confirm("Are you sure you want to disconnect this account?")) {
+      try {
+        await disconnectBankAccount(accountId);
+        toast({
+          title: "Success",
+          description: "Account disconnected successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+        fetchBankAccounts();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to disconnect account",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    }
+  };
+
+  // Report Functions
+  const handleDownloadReport = async (period, format) => {
+    try {
+      setIsGeneratingReport(true);
+      await downloadReport({
+        period,
+        format,
+        report_type: period === 'this_week' ? 'weekly' : 'monthly'
+      });
+      toast({
+        title: "Success",
+        description: `${format.toUpperCase()} report downloaded successfully`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate report",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const handleEmailReport = async (period, format) => {
+    try {
+      await emailReport({
+        period,
+        format,
+        report_type: period === 'this_week' ? 'weekly' : 'monthly',
+        email: user.email
+      });
+      toast({
+        title: "Success",
+        description: `Report will be emailed to ${user.email}`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to email report",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleUpdateReportSettings = async (newSettings) => {
+    try {
+      setReportSettings(newSettings);
+      localStorage.setItem('reportSettings', JSON.stringify(newSettings));
+      
+      await updateReportSettings({
+        frequency: newSettings.frequency,
+        autoSync: newSettings.autoSync
+      });
+      
+      toast({
+        title: "Success",
+        description: "Report settings updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update settings",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Box minH="100vh" bg={bg}>
       <Navbar />
@@ -225,6 +490,8 @@ export default function SettingsPage() {
             <Tab>Security</Tab>
             <Tab>Device Management</Tab>
             <Tab>Profile</Tab>
+            <Tab>Bank Accounts</Tab>
+            <Tab>Reports</Tab>
           </TabList>
 
           <TabPanels>
@@ -424,6 +691,206 @@ export default function SettingsPage() {
                   </VStack>
                 </CardBody>
               </Card>
+            </TabPanel>
+
+            {/* Bank Accounts Tab */}
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <Card bg={cardBg}>
+                  <CardBody>
+                    <VStack align="stretch" spacing={4}>
+                      <HStack justify="space-between">
+                        <Box>
+                          <Heading size="md" mb={2}>Connected Bank Accounts</Heading>
+                          <Text color="gray.600">
+                            Manage your connected bank accounts and sync settings
+                          </Text>
+                        </Box>
+                        <Button
+                          leftIcon={<FaSync />}
+                          colorScheme="blue"
+                          onClick={handleSyncAll}
+                          isLoading={isSyncing}
+                          loadingText="Syncing..."
+                        >
+                          Sync All
+                        </Button>
+                      </HStack>
+
+                      {isLoadingBankAccounts ? (
+                        <Spinner />
+                      ) : bankAccounts.length === 0 ? (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          No bank accounts connected
+                        </Text>
+                      ) : (
+                        <VStack spacing={4}>
+                          {bankAccounts.map((account) => (
+                            <Card key={account.id} bg={useColorModeValue('gray.50', 'gray.600')}>
+                              <CardBody>
+                                <Flex justify="space-between" align="start">
+                                  <VStack align="start" spacing={2}>
+                                    <HStack>
+                                      <FaUniversity />
+                                      <Heading size="sm">{account.name}</Heading>
+                                      {account.is_plaid_account && (
+                                        <Badge colorScheme="blue">Plaid Connected</Badge>
+                                      )}
+                                    </HStack>
+                                    <Text fontSize="sm" color="gray.600">
+                                      {account.account_type} • Balance: ${account.balance}
+                                    </Text>
+                                    {account.last_plaid_sync && (
+                                      <Text fontSize="xs" color="gray.500">
+                                        Last sync: {new Date(account.last_plaid_sync).toLocaleString()}
+                                      </Text>
+                                    )}
+                                  </VStack>
+                                  
+                                  <VStack spacing={2}>
+                                    {account.is_plaid_account && (
+                                      <HStack>
+                                        <Text fontSize="sm">Auto Sync:</Text>
+                                        <Switch
+                                          isChecked={account.auto_sync_enabled}
+                                          onChange={(e) => handleUpdateSyncSettings(account.id, {
+                                            auto_sync_enabled: e.target.checked
+                                          })}
+                                        />
+                                      </HStack>
+                                    )}
+                                    <HStack spacing={2}>
+                                      {account.is_plaid_account && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleSyncAccount(account.id)}
+                                        >
+                                          Sync Now
+                                        </Button>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        colorScheme="red"
+                                        variant="outline"
+                                        onClick={() => handleDisconnectAccount(account.id)}
+                                      >
+                                        Disconnect
+                                      </Button>
+                                    </HStack>
+                                  </VStack>
+                                </Flex>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </VStack>
+                      )}
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
+            </TabPanel>
+
+            {/* Reports Tab */}
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <Card bg={cardBg}>
+                  <CardBody>
+                    <VStack align="stretch" spacing={6}>
+                      <Box>
+                        <Heading size="md" mb={2}>Financial Reports</Heading>
+                        <Text color="gray.600">
+                          Generate and download your financial reports
+                        </Text>
+                      </Box>
+
+                      {/* Quick Actions */}
+                      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
+                        <Button
+                          leftIcon={<FaDownload />}
+                          colorScheme="blue"
+                          onClick={() => handleDownloadReport('this_month', 'pdf')}
+                          isLoading={isGeneratingReport}
+                        >
+                          Monthly PDF
+                        </Button>
+                        <Button
+                          leftIcon={<FaDownload />}
+                          colorScheme="green"
+                          onClick={() => handleDownloadReport('this_week', 'csv')}
+                          isLoading={isGeneratingReport}
+                        >
+                          Weekly CSV
+                        </Button>
+                        <Button
+                          leftIcon={<FaEnvelope />}
+                          colorScheme="purple"
+                          onClick={() => handleEmailReport('this_month', 'pdf')}
+                        >
+                          Email Report
+                        </Button>
+                        <Button
+                          leftIcon={<FaDownload />}
+                          variant="outline"
+                          onClick={() => handleDownloadReport('custom', 'pdf')}
+                        >
+                          Custom Range
+                        </Button>
+                      </SimpleGrid>
+
+                      <Divider />
+
+                      {/* Report Settings */}
+                      <Box>
+                        <Heading size="sm" mb={4}>Report Settings</Heading>
+                        <VStack spacing={4} align="stretch">
+                          <FormControl>
+                            <FormLabel>Email Report Frequency</FormLabel>
+                            <Select
+                              value={reportSettings.frequency}
+                              onChange={(e) => handleUpdateReportSettings({
+                                ...reportSettings,
+                                frequency: e.target.value
+                              })}
+                            >
+                              <option value="never">Never</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="monthly">Monthly</option>
+                              <option value="quarterly">Quarterly</option>
+                            </Select>
+                          </FormControl>
+
+                          <FormControl display="flex" alignItems="center">
+                            <FormLabel mb="0">
+                              Enable Automatic Bank Sync
+                            </FormLabel>
+                            <Switch
+                              isChecked={reportSettings.autoSync}
+                              onChange={(e) => handleUpdateReportSettings({
+                                ...reportSettings,
+                                autoSync: e.target.checked
+                              })}
+                            />
+                          </FormControl>
+
+                          <FormControl display="flex" alignItems="center">
+                            <FormLabel mb="0">
+                              Receive Email Reports
+                            </FormLabel>
+                            <Switch
+                              isChecked={reportSettings.emailReports}
+                              onChange={(e) => handleUpdateReportSettings({
+                                ...reportSettings,
+                                emailReports: e.target.checked
+                              })}
+                            />
+                          </FormControl>
+                        </VStack>
+                      </Box>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
             </TabPanel>
           </TabPanels>
         </Tabs>
