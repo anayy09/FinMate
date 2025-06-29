@@ -113,7 +113,7 @@ const BudgetsPage = () => {
       const budgetData = {
         category: parseInt(formData.category),
         amount: parseFloat(formData.amount),
-        month: formData.month,
+        month: formData.month + '-01', // Convert YYYY-MM to YYYY-MM-01 for API
       };
 
       if (selectedBudget) {
@@ -157,7 +157,7 @@ const BudgetsPage = () => {
     setFormData({
       category: budget.category.toString(),
       amount: budget.amount.toString(),
-      month: budget.month,
+      month: budget.month.slice(0, 7), // Convert YYYY-MM-DD to YYYY-MM for month input
     });
     onOpen();
   };
