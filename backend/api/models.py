@@ -99,6 +99,11 @@ class Account(models.Model):
     # Plaid integration fields
     plaid_account_id = models.CharField(max_length=100, blank=True, null=True)
     plaid_access_token = models.CharField(max_length=200, blank=True, null=True)
+    plaid_item_id = models.CharField(max_length=100, blank=True, null=True)
+    institution_name = models.CharField(max_length=100, blank=True, null=True)
+    account_mask = models.CharField(max_length=10, blank=True, null=True)
+    last_sync = models.DateTimeField(null=True, blank=True)
+    sync_cursor = models.CharField(max_length=200, blank=True, null=True)  # For transaction sync
     
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -109,6 +114,33 @@ class Account(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_account_type_display()})"
+
+class PlaidItem(models.Model):
+    """Stores Plaid item information for connected institutions"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='plaid_items')
+    plaid_item_id = models.CharField(max_length=100, unique=True)
+    access_token = models.CharField(max_length=200)
+    institution_id = models.CharField(max_length=100)
+    institution_name = models.CharField(max_length=100)
+    
+    # Item status
+    available_products = models.JSONField(default=list)
+    billed_products = models.JSONField(default=list)
+    last_webhook = models.DateTimeField(null=True, blank=True)
+    
+    # Error tracking
+    error_type = models.CharField(max_length=100, blank=True, null=True)
+    error_code = models.CharField(max_length=100, blank=True, null=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.institution_name} - {self.user.email}"
 
 class Transaction(models.Model):
     """Individual financial transactions."""
