@@ -71,6 +71,9 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
             'account', 'category', 'amount', 'transaction_type',
             'description', 'notes', 'transaction_date', 'merchant_name', 'location'
         ]
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True},
+        }
     
     def validate_amount(self, value):
         if value <= 0:
@@ -80,6 +83,16 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Set the user from the request context
         validated_data['user'] = self.context['request'].user
+        
+        # If no description provided, generate one from merchant_name or category
+        if not validated_data.get('description'):
+            if validated_data.get('merchant_name'):
+                validated_data['description'] = f"Transaction at {validated_data['merchant_name']}"
+            elif validated_data.get('category'):
+                validated_data['description'] = f"{validated_data['category'].name} transaction"
+            else:
+                validated_data['description'] = f"{validated_data['transaction_type'].title()} transaction"
+        
         return super().create(validated_data)
 
 class BudgetSerializer(serializers.ModelSerializer):
