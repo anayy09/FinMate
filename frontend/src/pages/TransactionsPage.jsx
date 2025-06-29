@@ -137,6 +137,27 @@ export default function TransactionsPage() {
   
   const handleSubmit = async () => {
     try {
+      // Validate required fields
+      if (!formData.account) {
+        toast({
+          title: "Error",
+          description: "Please select an account",
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+      
+      if (!formData.amount || formData.amount <= 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid amount",
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+      
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, formData);
         toast({
@@ -160,11 +181,26 @@ export default function TransactionsPage() {
       fetchData();
     } catch (error) {
       console.error("Error saving transaction:", error);
+      
+      // Better error handling for API responses
+      let errorMessage = "Failed to save transaction";
+      if (error.account) {
+        errorMessage = Array.isArray(error.account) ? error.account[0] : error.account;
+      } else if (error.description) {
+        errorMessage = Array.isArray(error.description) ? error.description[0] : error.description;
+      } else if (error.amount) {
+        errorMessage = Array.isArray(error.amount) ? error.amount[0] : error.amount;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to save transaction",
+        description: errorMessage,
         status: "error",
-        duration: 3000,
+        duration: 5000,
       });
     }
   };
@@ -211,7 +247,7 @@ export default function TransactionsPage() {
   const resetForm = () => {
     setEditingTransaction(null);
     setFormData({
-      account: '',
+      account: accounts.length > 0 ? accounts[0].id : '',
       category: '',
       amount: '',
       transaction_type: 'expense',
@@ -271,10 +307,20 @@ export default function TransactionsPage() {
               Manage your income, expenses, and transfers
             </Text>
           </Box>
-          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={handleAddNew}>
+          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={handleAddNew} disabled={accounts.length === 0}>
             Add Transaction
           </Button>
         </Flex>
+
+        {accounts.length === 0 && (
+          <Alert status="warning" mb={6}>
+            <AlertIcon />
+            <Box>
+              <Text fontWeight="bold">No accounts found</Text>
+              <Text>You need to create an account before you can add transactions. Please contact support or refresh the page.</Text>
+            </Box>
+          </Alert>
+        )}
         
         {/* Filters */}
         <Box bg={cardBg} p={4} rounded="lg" shadow="sm" mb={6}>
@@ -479,8 +525,7 @@ export default function TransactionsPage() {
                   <Input
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    placeholder="Transaction description"
-                    required
+                    placeholder="Transaction description (optional)"
                   />
                 </FormControl>
                 

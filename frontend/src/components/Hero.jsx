@@ -1,8 +1,11 @@
 import { Box, Heading, Container, Text, Button, Stack } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Hero() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
   return (
     <Container maxW={"3xl"} textAlign={"center"} py={10}>
       <Stack spacing={8}>
@@ -21,13 +24,23 @@ export default function Hero() {
           financial insights to save more.
         </Text>
         <Stack direction={"row"} justify={"center"} spacing={6}>
-          <Button
-            colorScheme={"green"}
-            size="lg"
-            onClick={() => navigate("/login")}
-          >
-            Join Now
-          </Button>
+          {user ? (
+            <Button
+              colorScheme={"green"}
+              size="lg"
+              onClick={() => navigate("/dashboard")}
+            >
+              Go to Dashboard
+            </Button>
+          ) : (
+            <Button
+              colorScheme={"green"}
+              size="lg"
+              onClick={() => navigate("/login")}
+            >
+              Join Now
+            </Button>
+          )}
           <Button
             variant={"outline"}
             colorScheme={"green"}

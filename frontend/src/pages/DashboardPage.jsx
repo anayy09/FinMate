@@ -51,12 +51,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Redirect to login if user is not authenticated
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {

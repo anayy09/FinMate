@@ -1,23 +1,21 @@
 import { Box, Flex, Button, Link, Spacer, useColorModeValue, useToast, HStack } from "@chakra-ui/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import AuthContext
-import { logout } from "../api/auth";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
-  const { user, setUser } = useAuth(); // Get user state from AuthContext
+  const { user, handleLogout } = useAuth(); // Get user state and logout function from AuthContext
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
   const bg = useColorModeValue("white", "gray.800");
   const color = useColorModeValue("gray.800", "white");
 
-  const handleLogout = async () => {
+  const onLogout = async () => {
     try {
-      await logout();
-      setUser(null); // Clear user data
+      await handleLogout();
       toast({ title: "Logged out successfully", status: "success", duration: 3000 });
-      navigate("/login");
+      navigate("/");
     } catch (error) {
       toast({ title: "Logout failed", description: error.message, status: "error", duration: 3000 });
     }
@@ -76,7 +74,7 @@ export default function Navbar() {
               >
                 Settings
               </Button>
-              <Button variant="ghost" onClick={handleLogout}>
+              <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
             </>

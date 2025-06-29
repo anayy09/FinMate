@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Flex,
   Box,
@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import PageTransition from "../components/PageTransition";
 import Navbar from "../components/Navbar";
 import { signup } from "../api/auth";
+import { useAuth } from "../context/AuthContext";
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +32,14 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSignup = async () => {
     setLoading(true);
@@ -89,6 +98,10 @@ export default function SignupPage() {
     }
     setLoading(false);
   };
+
+  if (authLoading) {
+    return <Box>Loading...</Box>;
+  }
 
   return (
     <Flex

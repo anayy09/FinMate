@@ -71,12 +71,8 @@ export default function SettingsPage() {
   const [disablePassword, setDisablePassword] = useState("");
 
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
     fetchSessions();
-  }, [user, navigate]);
+  }, []);
 
   const fetchSessions = async () => {
     setIsLoadingSessions(true);
@@ -217,8 +213,6 @@ export default function SettingsPage() {
     }
     return FaDesktop;
   };
-
-  if (!user) return null;
 
   return (
     <Box minH="100vh" bg={bg}>

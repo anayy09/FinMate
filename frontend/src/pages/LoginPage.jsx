@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Flex,
   Box,
@@ -30,7 +30,14 @@ export default function LoginPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { handleLogin } = useAuth();
+  const { handleLogin, user, loading: authLoading } = useAuth();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
 
   const handleLoginSubmit = async () => {
     setLoading(true);
@@ -75,6 +82,10 @@ export default function LoginPage() {
     }
     setLoading(false);
   };
+
+  if (authLoading) {
+    return <Box>Loading...</Box>;
+  }
 
   return (
     <Flex
