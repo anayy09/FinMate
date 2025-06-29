@@ -10,6 +10,7 @@ import PasswordResetPage from "./pages/PasswordResetPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import RecurringTransactionsPage from "./pages/RecurringTransactionsPage";
 
 export default function App() {
   return (
@@ -35,6 +36,11 @@ export default function App() {
           <Route path="/transactions" element={
             <ProtectedRoute>
               <TransactionsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/recurring-transactions" element={
+            <ProtectedRoute>
+              <RecurringTransactionsPage />
             </ProtectedRoute>
           } />
         </Routes>

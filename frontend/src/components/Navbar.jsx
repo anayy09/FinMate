@@ -60,6 +60,13 @@ export default function Navbar() {
             >
               Accounts
             </Button>
+            <Button 
+              variant={isActive("/recurring-transactions") ? "solid" : "ghost"}
+              colorScheme={isActive("/recurring-transactions") ? "blue" : "gray"}
+              onClick={() => navigate("/recurring-transactions")}
+            >
+              Recurring
+            </Button>
           </HStack>
         )}
         
