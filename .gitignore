@@ -156,3 +156,6 @@ staticfiles/
 
 # 🔐 Secrets and environment variables
 config/settings/local.py
+
+# Temporary Ignore
+PLAN.md
