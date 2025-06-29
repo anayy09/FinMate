@@ -16,6 +16,7 @@ from .serializers import (
 from .models import User, Category, Account, Transaction, Budget, RecurringTransaction
 from .notification_models import Notification, NotificationPreference, AIInsight, SavingsGoal
 from .utils import send_verification_email, send_password_reset_email
+from .reports import FinancialReportGenerator, WeeklyReportGenerator, MonthlyReportGenerator
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
@@ -937,3 +938,231 @@ class WeeklySummaryView(APIView):
             'status': 'weekly summary generation queued',
             'task_id': task.id
         })
+
+
+class FinancialReportsView(APIView):
+    """Generate and download financial reports in PDF or CSV format."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get available report types and date ranges."""
+        return Response({
+            'report_types': ['weekly', 'monthly', 'custom'],
+            'formats': ['pdf', 'csv'],
+            'available_periods': {
+                'this_week': 'Current week',
+                'last_week': 'Previous week',
+                'this_month': 'Current month',
+                'last_month': 'Previous month',
+                'last_3_months': 'Last 3 months',
+                'last_6_months': 'Last 6 months',
+                'year_to_date': 'Year to date',
+                'custom': 'Custom date range'
+            }
+        })
+    
+    def post(self, request):
+        """Generate and return financial report."""
+        report_type = request.data.get('report_type', 'monthly')
+        report_format = request.data.get('format', 'pdf')
+        period = request.data.get('period', 'this_month')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+        
+        try:
+            # Determine date range based on period
+            if period == 'this_week':
+                generator = WeeklyReportGenerator(request.user)
+            elif period == 'last_week':
+                generator = WeeklyReportGenerator(request.user, week_offset=-1)
+            elif period == 'this_month':
+                generator = MonthlyReportGenerator(request.user)
+            elif period == 'last_month':
+                generator = MonthlyReportGenerator(request.user, month_offset=-1)
+            elif period == 'custom' and start_date and end_date:
+                from datetime import datetime
+                start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                generator = FinancialReportGenerator(request.user, start, end)
+            else:
+                # Default to current month
+                generator = MonthlyReportGenerator(request.user)
+            
+            # Generate report in requested format
+            if report_format.lower() == 'csv':
+                return generator.generate_csv_report()
+            else:
+                return generator.generate_pdf_report()
+                
+        except Exception as e:
+            return Response({
+                'error': f'Failed to generate report: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EmailReportsView(APIView):
+    """Email financial reports to users."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Schedule email delivery of financial report."""
+        email = request.data.get('email', request.user.email)
+        report_type = request.data.get('report_type', 'monthly')
+        report_format = request.data.get('format', 'pdf')
+        period = request.data.get('period', 'this_month')
+        
+        # Import and queue the email task
+        from .tasks import send_financial_report_email
+        
+        task = send_financial_report_email.delay(
+            user_id=request.user.id,
+            email=email,
+            report_type=report_type,
+            report_format=report_format,
+            period=period
+        )
+        
+        return Response({
+            'status': 'email scheduled',
+            'task_id': task.id,
+            'message': f'Financial report will be sent to {email}'
+        })
+
+
+class PlaidAccountSyncView(APIView):
+    """Enhanced Plaid integration for automatic transaction sync."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Trigger manual sync of Plaid accounts."""
+        from .tasks import sync_plaid_transactions
+        
+        account_id = request.data.get('account_id')
+        force_sync = request.data.get('force_sync', False)
+        
+        # Queue sync task
+        task = sync_plaid_transactions.delay(
+            user_id=request.user.id,
+            account_id=account_id,
+            force_sync=force_sync
+        )
+        
+        return Response({
+            'status': 'sync queued',
+            'task_id': task.id,
+            'message': 'Transaction sync has been started'
+        })
+    
+    def get(self, request):
+        """Get sync status and last sync information."""
+        accounts = Account.objects.filter(
+            user=request.user,
+            is_plaid_account=True
+        )
+        
+        sync_status = []
+        for account in accounts:
+            last_sync = getattr(account, 'last_plaid_sync', None)
+            sync_status.append({
+                'account_id': account.id,
+                'account_name': account.name,
+                'plaid_account_id': account.plaid_account_id,
+                'last_sync': last_sync,
+                'sync_enabled': getattr(account, 'auto_sync_enabled', True),
+                'sync_frequency': getattr(account, 'sync_frequency', 'daily')
+            })
+        
+        return Response({
+            'accounts': sync_status,
+            'auto_sync_enabled': request.user.profile.auto_sync_enabled if hasattr(request.user, 'profile') else True
+        })
+
+
+class BankAccountManagementView(APIView):
+    """Manage connected bank accounts and sync settings."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get all connected bank accounts with detailed info."""
+        accounts = Account.objects.filter(user=request.user)
+        
+        account_data = []
+        for account in accounts:
+            account_info = {
+                'id': account.id,
+                'name': account.name,
+                'account_type': account.account_type,
+                'balance': account.balance,
+                'is_plaid_account': account.is_plaid_account,
+                'created_at': account.created_at,
+                'updated_at': account.updated_at
+            }
+            
+            # Add Plaid-specific data if available
+            if account.is_plaid_account:
+                account_info.update({
+                    'plaid_account_id': account.plaid_account_id,
+                    'plaid_institution_name': getattr(account, 'plaid_institution_name', ''),
+                    'last_plaid_sync': getattr(account, 'last_plaid_sync', None),
+                    'auto_sync_enabled': getattr(account, 'auto_sync_enabled', True),
+                    'sync_frequency': getattr(account, 'sync_frequency', 'daily')
+                })
+            
+            account_data.append(account_info)
+        
+        return Response({'accounts': account_data})
+    
+    def patch(self, request, account_id):
+        """Update bank account sync settings."""
+        try:
+            account = Account.objects.get(id=account_id, user=request.user)
+            
+            # Update sync settings
+            if 'auto_sync_enabled' in request.data:
+                # You might need to add this field to your Account model
+                account.auto_sync_enabled = request.data['auto_sync_enabled']
+            
+            if 'sync_frequency' in request.data:
+                account.sync_frequency = request.data['sync_frequency']
+            
+            account.save()
+            
+            return Response({
+                'message': 'Account settings updated successfully',
+                'account': {
+                    'id': account.id,
+                    'auto_sync_enabled': getattr(account, 'auto_sync_enabled', True),
+                    'sync_frequency': getattr(account, 'sync_frequency', 'daily')
+                }
+            })
+            
+        except Account.DoesNotExist:
+            return Response({
+                'error': 'Account not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    def delete(self, request, account_id):
+        """Disconnect a bank account."""
+        try:
+            account = Account.objects.get(id=account_id, user=request.user)
+            
+            if account.is_plaid_account:
+                # Queue task to properly disconnect from Plaid
+                from .tasks import disconnect_plaid_account
+                task = disconnect_plaid_account.delay(account_id)
+                
+                return Response({
+                    'message': 'Account disconnection started',
+                    'task_id': task.id
+                })
+            else:
+                # For manual accounts, just delete
+                account.delete()
+                return Response({
+                    'message': 'Account deleted successfully'
+                })
+                
+        except Account.DoesNotExist:
+            return Response({
+                'error': 'Account not found'
+            }, status=status.HTTP_404_NOT_FOUND)
