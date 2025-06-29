@@ -36,6 +36,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     # 2FA fields
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
+    
+    # Sprint 4: Report preferences
+    report_email_frequency = models.CharField(max_length=20, choices=[
+        ('never', 'Never'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ], default='monthly')
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name"]
@@ -105,6 +112,17 @@ class Account(models.Model):
     last_sync = models.DateTimeField(null=True, blank=True)
     sync_cursor = models.CharField(max_length=200, blank=True, null=True)  # For transaction sync
     
+    # Sprint 4: Enhanced Plaid features
+    is_plaid_account = models.BooleanField(default=False)
+    plaid_institution_name = models.CharField(max_length=200, blank=True, null=True)
+    auto_sync_enabled = models.BooleanField(default=False)
+    sync_frequency = models.CharField(max_length=20, choices=[
+        ('hourly', 'Hourly'),
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+    ], default='daily')
+    last_plaid_sync = models.DateTimeField(null=True, blank=True)
+    
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -166,6 +184,9 @@ class Transaction(models.Model):
     # Plaid integration fields
     plaid_transaction_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
     merchant_name = models.CharField(max_length=200, blank=True, null=True)
+    
+    # Sprint 4: Enhanced transaction tracking
+    is_plaid_transaction = models.BooleanField(default=False)
     
     # Location data
     location = models.CharField(max_length=255, blank=True, null=True)
