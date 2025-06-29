@@ -16,3 +16,7 @@ pandas==2.1.4
 numpy==1.24.3
 plaid-python==16.0.0
 python-dotenv==1.0.1
+reportlab==4.0.7
+xhtml2pdf==0.2.11
+PyPDF2==3.0.1
+openpyxl==3.1.2
