@@ -1,14 +1,23 @@
-from rest_framework import status, generics, permissions
+from rest_framework import status, generics, permissions, viewsets, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .serializers import UserSerializer, LoginSerializer
-from .utils import send_verification_email
+from django_filters.rest_framework import DjangoFilterBackend
+from .serializers import (
+    UserSerializer, LoginSerializer, CategorySerializer, AccountSerializer,
+    TransactionSerializer, BudgetSerializer, RecurringTransactionSerializer,
+    NotificationSerializer, NotificationPreferenceSerializer, AIInsightSerializer,
+    SavingsGoalSerializer, ExpensePredictionSerializer, WeeklySummarySerializer
+)
+from .models import User, Category, Account, Transaction, Budget, RecurringTransaction
+from .notification_models import Notification, NotificationPreference, AIInsight, SavingsGoal
+from .utils import send_verification_email, send_password_reset_email
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
-from .utils import send_verification_email, send_password_reset_email
 from decimal import Decimal
 import uuid
 import pyotp
@@ -255,7 +264,7 @@ class Disable2FAView(APIView):
         return Response({"message": "2FA disabled successfully"}, status=status.HTTP_200_OK)
 
 # Transaction Management Views
-from rest_framework import viewsets, filters
+# Removed duplicate import - already imported at the top
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count
@@ -537,3 +546,394 @@ class RecurringTransactionViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+# AI Insights and Notification Views
+class NotificationViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing user notifications."""
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['notification_type', 'status']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        """Mark a notification as read."""
+        notification = self.get_object()
+        notification.mark_as_read()
+        return Response({'status': 'marked as read'})
+    
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        """Mark all notifications as read."""
+        unread_notifications = self.get_queryset().filter(read_at__isnull=True)
+        count = unread_notifications.count()
+        
+        for notification in unread_notifications:
+            notification.mark_as_read()
+        
+        return Response({'marked_as_read': count})
+    
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """Get count of unread notifications."""
+        count = self.get_queryset().filter(read_at__isnull=True).count()
+        return Response({'unread_count': count})
+
+
+class NotificationPreferenceViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing notification preferences."""
+    serializer_class = NotificationPreferenceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return NotificationPreference.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['post'])
+    def bulk_update(self, request):
+        """Bulk update notification preferences."""
+        preferences_data = request.data.get('preferences', [])
+        
+        for pref_data in preferences_data:
+            notification_type = pref_data.get('notification_type')
+            if notification_type:
+                preference, created = NotificationPreference.objects.get_or_create(
+                    user=request.user,
+                    notification_type=notification_type,
+                    defaults=pref_data
+                )
+                if not created:
+                    for key, value in pref_data.items():
+                        setattr(preference, key, value)
+                    preference.save()
+        
+        return Response({'status': 'preferences updated'})
+
+
+class AIInsightViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for viewing AI insights."""
+    serializer_class = AIInsightSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['insight_type', 'is_actionable', 'action_taken']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        return AIInsight.objects.filter(user=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def mark_action_taken(self, request, pk=None):
+        """Mark an insight as acted upon."""
+        insight = self.get_object()
+        insight.action_taken = True
+        insight.action_date = timezone.now()
+        insight.save()
+        return Response({'status': 'action marked'})
+    
+    @action(detail=True, methods=['post'])
+    def provide_feedback(self, request, pk=None):
+        """Provide feedback on insight relevance."""
+        insight = self.get_object()
+        insight.is_relevant = request.data.get('is_relevant')
+        insight.feedback = request.data.get('feedback', '')
+        insight.save()
+        return Response({'status': 'feedback recorded'})
+    
+    @action(detail=False, methods=['post'])
+    def generate_insights(self, request):
+        """Trigger AI insights generation for current user."""
+        from .tasks import generate_user_ai_insights
+        
+        # Queue the task
+        task = generate_user_ai_insights.delay(request.user.id)
+        
+        return Response({
+            'status': 'insights generation queued',
+            'task_id': task.id
+        })
+
+
+class SavingsGoalViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing savings goals."""
+    serializer_class = SavingsGoalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        return SavingsGoal.objects.filter(user=self.request.user).prefetch_related('target_categories')
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def add_savings(self, request, pk=None):
+        """Add money to a savings goal."""
+        goal = self.get_object()
+        amount = request.data.get('amount', 0)
+        
+        if amount <= 0:
+            return Response({'error': 'Amount must be positive'}, status=400)
+        
+        progress = goal.add_savings(amount)
+        
+        # Check if goal completed
+        if goal.status == 'completed':
+            # Create completion notification
+            Notification.objects.create(
+                user=goal.user,
+                notification_type='goal_achievement',
+                title=f"Goal Completed: {goal.title}",
+                message=f"Congratulations! You've achieved your savings goal of ${goal.target_amount:.2f}!",
+                data={'goal_id': goal.id, 'final_amount': float(goal.current_amount)}
+            )
+        
+        return Response({
+            'current_amount': goal.current_amount,
+            'progress_percentage': progress,
+            'status': goal.status
+        })
+    
+    @action(detail=True, methods=['post'])
+    def update_status(self, request, pk=None):
+        """Update goal status (pause, resume, cancel)."""
+        goal = self.get_object()
+        new_status = request.data.get('status')
+        
+        if new_status in ['active', 'paused', 'cancelled']:
+            goal.status = new_status
+            goal.save()
+            return Response({'status': f'goal {new_status}'})
+        
+        return Response({'error': 'Invalid status'}, status=400)
+
+
+class ExpensePredictionView(APIView):
+    """API view for expense predictions."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get expense predictions for the user."""
+        from .ml_models import ExpensePredictionModel
+        
+        category_name = request.query_params.get('category', None)
+        
+        # Initialize and train model
+        model = ExpensePredictionModel()
+        success, result = model.train(request.user.id)
+        
+        if not success:
+            return Response({'error': result}, status=400)
+        
+        # Make predictions
+        predictions, error = model.predict_next_month_expenses(request.user.id, category_name)
+        
+        if error:
+            return Response({'error': error}, status=400)
+        
+        serializer = ExpensePredictionSerializer(predictions)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Train prediction model with latest data."""
+        from .ml_models import ExpensePredictionModel
+        
+        model = ExpensePredictionModel()
+        success, result = model.train(request.user.id)
+        
+        if success:
+            return Response({
+                'status': 'model trained successfully',
+                'metrics': result
+            })
+        else:
+            return Response({'error': result}, status=400)
+
+
+class AnomalyDetectionView(APIView):
+    """API view for anomaly detection."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get detected anomalies for the user."""
+        from .ml_models import AnomalyDetectionModel
+        
+        days_back = int(request.query_params.get('days_back', 30))
+        
+        # Initialize and train model
+        model = AnomalyDetectionModel()
+        success, result = model.train(request.user.id)
+        
+        if not success:
+            return Response({'error': result}, status=400)
+        
+        # Detect anomalies
+        anomalies, error = model.detect_anomalies(request.user.id, days_back)
+        
+        if error:
+            return Response({'error': error}, status=400)
+        
+        return Response({'anomalies': anomalies})
+    
+    def post(self, request):
+        """Trigger anomaly detection task."""
+        from .tasks import detect_anomalies_for_user
+        
+        task = detect_anomalies_for_user.delay(request.user.id)
+        
+        return Response({
+            'status': 'anomaly detection queued',
+            'task_id': task.id
+        })
+
+
+class BudgetInsightsView(APIView):
+    """API view for budget insights and recommendations."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get budget insights and recommendations."""
+        from datetime import datetime, timedelta
+        from django.db.models import Sum, Avg
+        from decimal import Decimal
+        
+        current_month = timezone.now().replace(day=1).date()
+        
+        # Get current month's spending by category
+        current_spending = Transaction.objects.filter(
+            user=request.user,
+            transaction_type='expense',
+            transaction_date__gte=current_month
+        ).values('category__name').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        
+        # Get historical averages (last 3 months)
+        three_months_ago = current_month - timedelta(days=90)
+        historical_avg = Transaction.objects.filter(
+            user=request.user,
+            transaction_type='expense',
+            transaction_date__range=[three_months_ago, current_month]
+        ).values('category__name').annotate(
+            avg_amount=Avg('amount')
+        )
+        
+        # Create historical lookup
+        hist_lookup = {item['category__name']: item['avg_amount'] for item in historical_avg}
+        
+        insights = []
+        recommendations = []
+        
+        for spending in current_spending:
+            category = spending['category__name'] or 'Uncategorized'
+            current_amount = spending['total']
+            historical_amount = hist_lookup.get(category, Decimal('0.00'))
+            
+            if historical_amount and current_amount > historical_amount * Decimal('1.2'):
+                insights.append({
+                    'type': 'increased_spending',
+                    'category': category,
+                    'current_amount': float(current_amount),
+                    'historical_average': float(historical_amount),
+                    'increase_percentage': float((current_amount / historical_amount - 1) * 100),
+                    'message': f"Your {category} spending is {float((current_amount / historical_amount - 1) * 100):.1f}% higher than usual"
+                })
+                
+                # Suggest budget
+                suggested_budget = historical_amount * Decimal('1.1')  # 10% buffer
+                recommendations.append({
+                    'type': 'budget_suggestion',
+                    'category': category,
+                    'suggested_amount': float(suggested_budget),
+                    'message': f"Consider setting a ${suggested_budget:.2f} monthly budget for {category}"
+                })
+        
+        return Response({
+            'insights': insights,
+            'recommendations': recommendations,
+            'current_month_total': float(sum(s['total'] for s in current_spending)),
+            'analysis_date': current_month.isoformat()
+        })
+
+
+class WeeklySummaryView(APIView):
+    """API view for weekly spending summary."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get weekly summary for the user."""
+        from datetime import datetime, timedelta
+        from django.db.models import Sum
+        
+        # Calculate date range
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=7)
+        
+        # Get week's transactions
+        transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__range=[start_date, end_date]
+        )
+        
+        # Calculate summary
+        total_income = transactions.filter(transaction_type='income').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        total_expenses = transactions.filter(transaction_type='expense').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # Get category breakdown
+        category_breakdown = {}
+        for transaction in transactions.filter(transaction_type='expense'):
+            category = transaction.category.name if transaction.category else 'Uncategorized'
+            category_breakdown[category] = category_breakdown.get(category, Decimal('0.00')) + transaction.amount
+        
+        # Get previous week for comparison
+        prev_start = start_date - timedelta(days=7)
+        prev_end = start_date
+        
+        prev_transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__range=[prev_start, prev_end]
+        )
+        
+        prev_expenses = prev_transactions.filter(transaction_type='expense').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_income': total_income,
+            'total_expenses': total_expenses,
+            'net_cash_flow': total_income - total_expenses,
+            'top_categories': dict(sorted(category_breakdown.items(), key=lambda x: x[1], reverse=True)[:5]),
+            'transaction_count': transactions.count(),
+            'comparison_previous_week': {
+                'expense_change': float(total_expenses - prev_expenses),
+                'expense_change_percentage': float((total_expenses / prev_expenses - 1) * 100) if prev_expenses > 0 else 0
+            }
+        }
+        
+        serializer = WeeklySummarySerializer(data)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Generate and send weekly summary email."""
+        from .tasks import send_weekly_summary
+        
+        task = send_weekly_summary.delay(request.user.id)
+        
+        return Response({
+            'status': 'weekly summary generation queued',
+            'task_id': task.id
+        })
