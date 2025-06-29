@@ -1,11 +1,11 @@
-import { 
-  Box, 
-  Flex, 
-  Button, 
-  Link, 
-  Spacer, 
-  useColorModeValue, 
-  useToast, 
+import {
+  Box,
+  Flex,
+  Button,
+  Link,
+  Spacer,
+  useColorModeValue,
+  useToast,
   HStack,
   Avatar,
   Text,
@@ -32,7 +32,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import AuthContext
 import ThemeToggle from "./ThemeToggle";
 import NotificationCenter from "./NotificationCenter";
-import { FiUser, FiSettings, FiLogOut, FiCreditCard, FiShield, FiMenu, FiDollarSign, FiHome, FiRefreshCw } from "react-icons/fi";
+import { FiUser, FiSettings, FiLogOut, FiCreditCard, FiShield, FiMenu, FiDollarSign, FiHome, FiRefreshCw, FiSmartphone } from "react-icons/fi";
 import { FaChartLine } from "react-icons/fa";
 
 export default function Navbar() {
@@ -41,7 +41,7 @@ export default function Navbar() {
   const location = useLocation();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
+
   // Enhanced color scheme
   const bg = useColorModeValue("white", "gray.900");
   const color = useColorModeValue("gray.700", "gray.100");
@@ -53,18 +53,18 @@ export default function Navbar() {
   const onLogout = async () => {
     try {
       await handleLogout();
-      toast({ 
-        title: "Logged out successfully", 
-        status: "success", 
+      toast({
+        title: "Logged out successfully",
+        status: "success",
         duration: 3000,
         position: "top-right"
       });
       navigate("/");
     } catch (error) {
-      toast({ 
-        title: "Logout failed", 
-        description: error.message, 
-        status: "error", 
+      toast({
+        title: "Logout failed",
+        description: error.message,
+        status: "error",
         duration: 3000,
         position: "top-right"
       });
@@ -84,44 +84,44 @@ export default function Navbar() {
 
   return (
     <>
-      <Box 
-        bg={bg} 
-        px={8} 
-        py={4} 
-        boxShadow="sm" 
+      <Box
+        bg={bg}
+        px={8}
+        py={4}
+        boxShadow="sm"
         borderBottom="1px"
         borderColor={borderColor}
-        position="fixed" 
-        width="100%" 
-        top={0} 
+        position="fixed"
+        width="100%"
+        top={0}
         zIndex={1000}
         backdropFilter="blur(10px)"
       >
         <Flex align="center" mx="auto">
           {/* Logo */}
-          <Link 
-            fontSize="2xl" 
-            fontWeight="bold" 
-            onClick={() => navigate("/")} 
-            color={activeColor} 
+          <Link
+            fontSize="2xl"
+            fontWeight="bold"
+            onClick={() => navigate("/")}
+            color={activeColor}
             _hover={{ textDecoration: "none", transform: "scale(1.05)" }}
             transition="all 0.2s"
             cursor="pointer"
           >
             FinMate
           </Link>
-          
+
           {/* Desktop Navigation Items */}
           {user && (
             <HStack spacing={1} ml={12} display={{ base: "none", lg: "flex" }}>
               {navItems.map((item) => (
                 <Tooltip key={item.path} label={item.label} hasArrow>
-                  <Button 
+                  <Button
                     variant="ghost"
                     size="md"
                     bg={isActive(item.path) ? activeBg : "transparent"}
                     color={isActive(item.path) ? activeColor : color}
-                    _hover={{ 
+                    _hover={{
                       bg: isActive(item.path) ? activeBg : hoverBg,
                       transform: "translateY(-1px)"
                     }}
@@ -142,9 +142,9 @@ export default function Navbar() {
               ))}
             </HStack>
           )}
-          
+
           <Spacer />
-          
+
           {/* Right side controls */}
           <HStack spacing={4}>
             {user ? (
@@ -157,15 +157,15 @@ export default function Navbar() {
                   display={{ base: "flex", lg: "none" }}
                   onClick={onOpen}
                 />
-                
+
                 {/* Notifications - Hidden on mobile */}
                 <Box display={{ base: "none", md: "block" }}>
                   <NotificationCenter />
                 </Box>
-                
+
                 {/* Theme Toggle */}
                 <ThemeToggle />
-                
+
                 {/* User Profile Menu */}
                 <Menu>
                   <MenuButton
@@ -199,7 +199,7 @@ export default function Navbar() {
                       )}
                     </HStack>
                   </MenuButton>
-                  
+
                   <MenuList
                     bg={bg}
                     borderColor={borderColor}
@@ -221,34 +221,50 @@ export default function Navbar() {
                         </Badge>
                       )}
                     </Box>
-                    
-                    <MenuItem 
+
+                    <MenuItem
                       icon={<FiUser />}
-                      onClick={() => navigate("/profile")}
+                      onClick={() => navigate("/profile?tab=details")}
                       _hover={{ bg: hoverBg }}
                     >
                       View Profile
                     </MenuItem>
-                    
-                    <MenuItem 
-                      icon={<FiSettings />}
-                      onClick={() => navigate("/settings")}
+
+                    <MenuItem
+                      icon={<FiCreditCard />}
+                      onClick={() => navigate("/profile?tab=bank-accounts")}
                       _hover={{ bg: hoverBg }}
                     >
-                      Settings
+                      Bank Accounts
                     </MenuItem>
-                    
-                    <MenuItem 
+
+                    <MenuItem
+                      icon={<FaChartLine />}
+                      onClick={() => navigate("/profile?tab=reports")}
+                      _hover={{ bg: hoverBg }}
+                    >
+                      Reports
+                    </MenuItem>
+
+                    <MenuItem
                       icon={<FiShield />}
-                      onClick={() => navigate("/settings")}
+                      onClick={() => navigate("/profile?tab=security")}
                       _hover={{ bg: hoverBg }}
                     >
                       Security
                     </MenuItem>
-                    
+
+                    <MenuItem
+                      icon={<FiSmartphone />}
+                      onClick={() => navigate("/profile?tab=device-management")}
+                      _hover={{ bg: hoverBg }}
+                    >
+                      Devices
+                    </MenuItem>
+
                     <MenuDivider />
-                    
-                    <MenuItem 
+
+                    <MenuItem
                       icon={<FiLogOut />}
                       onClick={onLogout}
                       _hover={{ bg: "red.50", color: "red.600" }}
@@ -262,15 +278,15 @@ export default function Navbar() {
             ) : (
               <>
                 <ThemeToggle />
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => navigate("/login")}
                   _hover={{ bg: hoverBg }}
                 >
                   Login
                 </Button>
-                <Button 
-                  colorScheme="blue" 
+                <Button
+                  colorScheme="blue"
                   onClick={() => navigate("/signup")}
                   bg={activeColor}
                   _hover={{ transform: "translateY(-1px)", boxShadow: "lg" }}
@@ -334,40 +350,64 @@ export default function Navbar() {
                     {item.label}
                   </Button>
                 ))}
-                
+
                 {/* Mobile-specific menu items */}
                 <Box mt={6}>
                   <Text fontSize="xs" fontWeight="medium" color="gray.500" mb={2} textTransform="uppercase">
                     Account
                   </Text>
-                  
+
                   <Stack spacing={1}>
                     <Button
                       variant="ghost"
                       justifyContent="flex-start"
                       onClick={() => {
-                        navigate("/profile");
+                        navigate("/profile?tab=details");
                         onClose();
                       }}
                       leftIcon={<FiUser />}
                     >
-                      Profile
+                      Profile Details
                     </Button>
-                    
+
                     <Button
                       variant="ghost"
                       justifyContent="flex-start"
                       onClick={() => {
-                        navigate("/settings");
+                        navigate("/profile?tab=bank-accounts");
+                        onClose();
+                      }}
+                      leftIcon={<FiCreditCard />}
+                    >
+                      Bank Accounts
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      justifyContent="flex-start"
+                      onClick={() => {
+                        navigate("/profile?tab=reports");
                         onClose();
                       }}
                       leftIcon={<FiSettings />}
                     >
-                      Settings
+                      Reports
                     </Button>
-                    
+
+                    <Button
+                      variant="ghost"
+                      justifyContent="flex-start"
+                      onClick={() => {
+                        navigate("/profile?tab=security");
+                        onClose();
+                      }}
+                      leftIcon={<FiShield />}
+                    >
+                      Security
+                    </Button>
+
                     <NotificationCenter />
-                    
+
                     <Button
                       variant="ghost"
                       justifyContent="flex-start"

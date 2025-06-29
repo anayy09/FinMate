@@ -51,7 +51,7 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope, FaEdit, FaUser, FaCalendar, FaMapMarkerAlt, FaPhone } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import axios from "axios";
 import { 
@@ -71,9 +71,53 @@ const API_URL = "http://127.0.0.1:8000/api";
 export default function ProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const bg = useColorModeValue("gray.50", "gray.800");
   const cardBg = useColorModeValue("white", "gray.700");
+  
+  // Tab management
+  const searchParams = new URLSearchParams(location.search);
+  const tabParam = searchParams.get('tab');
+  
+  // Map URL tab parameters to tab indices
+  const tabMapping = {
+    'details': 0,
+    'bank-accounts': 1,
+    'reports': 2,
+    'security': 3,
+    'device-management': 4
+  };
+  
+  // Reverse mapping for updating URL
+  const indexToTab = {
+    0: 'details',
+    1: 'bank-accounts',
+    2: 'reports',
+    3: 'security',
+    4: 'device-management'
+  };
+  
+  const [activeTabIndex, setActiveTabIndex] = useState(
+    tabParam && tabMapping[tabParam] !== undefined ? tabMapping[tabParam] : 0
+  );
+  
+  // Update tab when URL changes
+  useEffect(() => {
+    const newTabParam = new URLSearchParams(location.search).get('tab');
+    if (newTabParam && tabMapping[newTabParam] !== undefined) {
+      setActiveTabIndex(tabMapping[newTabParam]);
+    }
+  }, [location.search]);
+  
+  // Handle tab change and update URL
+  const handleTabChange = (index) => {
+    setActiveTabIndex(index);
+    const tabName = indexToTab[index];
+    if (tabName) {
+      navigate(`/profile?tab=${tabName}`, { replace: true });
+    }
+  };
   
   // 2FA states
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.two_factor_enabled || false);
@@ -654,7 +698,7 @@ export default function ProfilePage() {
       <Container maxW="container.xl" pt="6rem" pb={8}>
         <Heading size="lg" mb={6}>Profile</Heading>
         
-        <Tabs>
+        <Tabs index={activeTabIndex} onChange={handleTabChange}>
           <TabList>
             <Tab>Details</Tab>
             <Tab>Bank Accounts</Tab>
