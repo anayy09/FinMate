@@ -9,6 +9,7 @@ from .utils import send_verification_email
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from .utils import send_verification_email, send_password_reset_email
+from decimal import Decimal
 import uuid
 import pyotp
 import qrcode
@@ -343,6 +344,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return TransactionSerializer
     
     def perform_create(self, serializer):
+        # Ensure user has at least one account
+        if not self.request.user.accounts.exists():
+            from .models import Account
+            Account.objects.create(
+                user=self.request.user,
+                name="Default Account",
+                account_type="checking",
+                balance=Decimal('0.00'),
+                currency="USD"
+            )
+        
         transaction = serializer.save(user=self.request.user)
         
         # Update account balance
