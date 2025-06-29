@@ -698,92 +698,213 @@ export default function SettingsPage() {
               <VStack spacing={6} align="stretch">
                 <Card bg={cardBg}>
                   <CardBody>
-                    <VStack align="stretch" spacing={4}>
-                      <HStack justify="space-between">
+                    <VStack align="stretch" spacing={6}>
+                      <Flex 
+                        direction={{ base: "column", md: "row" }}
+                        justify="space-between" 
+                        align={{ base: "start", md: "center" }}
+                        gap={4}
+                      >
                         <Box>
-                          <Heading size="md" mb={2}>Connected Bank Accounts</Heading>
-                          <Text color="gray.600">
+                          <Heading size="md" mb={2} color={useColorModeValue('gray.800', 'gray.100')}>
+                            Connected Bank Accounts
+                          </Heading>
+                          <Text color="gray.600" fontSize="sm">
                             Manage your connected bank accounts and sync settings
                           </Text>
+                          {bankAccounts.length > 0 && (
+                            <Text color="gray.500" fontSize="xs" mt={1}>
+                              {bankAccounts.length} account{bankAccounts.length !== 1 ? 's' : ''} connected
+                            </Text>
+                          )}
                         </Box>
-                        <Button
-                          leftIcon={<FaSync />}
-                          colorScheme="blue"
-                          onClick={handleSyncAll}
-                          isLoading={isSyncing}
-                          loadingText="Syncing..."
-                        >
-                          Sync All
-                        </Button>
-                      </HStack>
+                        {bankAccounts.length > 0 && (
+                          <HStack spacing={3}>
+                            <Button
+                              leftIcon={<FaSync />}
+                              colorScheme="blue"
+                              onClick={handleSyncAll}
+                              isLoading={isSyncing}
+                              loadingText="Syncing..."
+                              size="sm"
+                              variant="solid"
+                            >
+                              Sync All
+                            </Button>
+                            <Button
+                              colorScheme="green"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // This could open a modal to connect new account
+                                toast({
+                                  title: "Coming Soon",
+                                  description: "Bank connection feature will be available soon",
+                                  status: "info",
+                                  duration: 3000,
+                                });
+                              }}
+                            >
+                              Connect New
+                            </Button>
+                          </HStack>
+                        )}
+                      </Flex>
 
                       {isLoadingBankAccounts ? (
-                        <Spinner />
+                        <Flex justify="center" py={8}>
+                          <Spinner size="lg" />
+                        </Flex>
                       ) : bankAccounts.length === 0 ? (
-                        <Text color="gray.500" textAlign="center" py={8}>
-                          No bank accounts connected
-                        </Text>
+                        <Box textAlign="center" py={16}>
+                          <Box 
+                            p={4} 
+                            bg={useColorModeValue('gray.100', 'gray.700')}
+                            borderRadius="full"
+                            display="inline-block"
+                            mb={4}
+                          >
+                            <FaUniversity size={32} color={useColorModeValue('#718096', '#A0AEC0')} />
+                          </Box>
+                          <Heading size="md" mb={2} color={useColorModeValue('gray.700', 'gray.300')}>
+                            No bank accounts connected
+                          </Heading>
+                          <Text color="gray.500" fontSize="sm" mb={6} maxW="400px" mx="auto">
+                            Connect your bank account to automatically import transactions and keep track of your finances effortlessly.
+                          </Text>
+                          <Button
+                            colorScheme="blue"
+                            onClick={() => {
+                              toast({
+                                title: "Coming Soon",
+                                description: "Bank connection feature will be available soon",
+                                status: "info",
+                                duration: 3000,
+                              });
+                            }}
+                          >
+                            Connect Your First Account
+                          </Button>
+                        </Box>
                       ) : (
-                        <VStack spacing={4}>
+                        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
                           {bankAccounts.map((account) => (
-                            <Card key={account.id} bg={useColorModeValue('gray.50', 'gray.600')}>
-                              <CardBody>
-                                <Flex justify="space-between" align="start">
-                                  <VStack align="start" spacing={2}>
-                                    <HStack>
-                                      <FaUniversity />
-                                      <Heading size="sm">{account.name}</Heading>
+                            <Card 
+                              key={account.id} 
+                              bg={cardBg}
+                              shadow="md"
+                              borderWidth="1px"
+                              borderColor={useColorModeValue('gray.200', 'gray.600')}
+                              _hover={{
+                                shadow: "lg",
+                                transform: "translateY(-2px)",
+                                transition: "all 0.2s"
+                              }}
+                            >
+                              <CardBody p={6}>
+                                <VStack align="stretch" spacing={4}>
+                                  {/* Header */}
+                                  <VStack align="start" spacing={3}>
+                                    <HStack justify="space-between" w="full">
+                                      <HStack spacing={3}>
+                                        <Box 
+                                          p={2} 
+                                          bg={useColorModeValue('blue.50', 'blue.900')}
+                                          borderRadius="md"
+                                          color={useColorModeValue('blue.600', 'blue.300')}
+                                        >
+                                          <FaUniversity size={20} />
+                                        </Box>
+                                        <VStack align="start" spacing={0}>
+                                          <Heading size="sm" noOfLines={1}>
+                                            {account.name}
+                                          </Heading>
+                                          <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                                            {account.account_type}
+                                          </Text>
+                                        </VStack>
+                                      </HStack>
                                       {account.is_plaid_account && (
-                                        <Badge colorScheme="blue">Plaid Connected</Badge>
+                                        <Badge colorScheme="blue" variant="solid" fontSize="xs">
+                                          Plaid
+                                        </Badge>
                                       )}
                                     </HStack>
-                                    <Text fontSize="sm" color="gray.600">
-                                      {account.account_type} • Balance: ${account.balance}
-                                    </Text>
-                                    {account.last_plaid_sync && (
-                                      <Text fontSize="xs" color="gray.500">
-                                        Last sync: {new Date(account.last_plaid_sync).toLocaleString()}
+
+                                    {/* Balance */}
+                                    <Box 
+                                      p={3} 
+                                      bg={useColorModeValue('green.50', 'green.900')}
+                                      borderRadius="md"
+                                      w="full"
+                                    >
+                                      <Text fontSize="xs" color="gray.500" mb={1}>
+                                        Current Balance
                                       </Text>
-                                    )}
+                                      <Text fontSize="xl" fontWeight="bold" color={useColorModeValue('green.600', 'green.300')}>
+                                        ${parseFloat(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                      </Text>
+                                    </Box>
                                   </VStack>
-                                  
-                                  <VStack spacing={2}>
-                                    {account.is_plaid_account && (
-                                      <HStack>
-                                        <Text fontSize="sm">Auto Sync:</Text>
+
+                                  {/* Sync Information */}
+                                  {account.is_plaid_account && (
+                                    <VStack align="stretch" spacing={2}>
+                                      <HStack justify="space-between">
+                                        <Text fontSize="sm" color="gray.600">
+                                          Auto Sync
+                                        </Text>
                                         <Switch
+                                          size="sm"
                                           isChecked={account.auto_sync_enabled}
                                           onChange={(e) => handleUpdateSyncSettings(account.id, {
                                             auto_sync_enabled: e.target.checked
                                           })}
                                         />
                                       </HStack>
-                                    )}
-                                    <HStack spacing={2}>
-                                      {account.is_plaid_account && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleSyncAccount(account.id)}
-                                        >
-                                          Sync Now
-                                        </Button>
+                                      {account.last_plaid_sync && (
+                                        <Text fontSize="xs" color="gray.500">
+                                          Last sync: {new Date(account.last_plaid_sync).toLocaleDateString()} at{' '}
+                                          {new Date(account.last_plaid_sync).toLocaleTimeString([], { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                          })}
+                                        </Text>
                                       )}
+                                    </VStack>
+                                  )}
+
+                                  {/* Actions */}
+                                  <VStack spacing={2} w="full">
+                                    {account.is_plaid_account && (
                                       <Button
                                         size="sm"
-                                        colorScheme="red"
+                                        colorScheme="blue"
                                         variant="outline"
-                                        onClick={() => handleDisconnectAccount(account.id)}
+                                        w="full"
+                                        leftIcon={<FaSync />}
+                                        onClick={() => handleSyncAccount(account.id)}
+                                        isLoading={isSyncing}
                                       >
-                                        Disconnect
+                                        Sync Now
                                       </Button>
-                                    </HStack>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      colorScheme="red"
+                                      variant="outline"
+                                      w="full"
+                                      leftIcon={<FaTrash />}
+                                      onClick={() => handleDisconnectAccount(account.id)}
+                                    >
+                                      Disconnect
+                                    </Button>
                                   </VStack>
-                                </Flex>
+                                </VStack>
                               </CardBody>
                             </Card>
                           ))}
-                        </VStack>
+                        </SimpleGrid>
                       )}
                     </VStack>
                   </CardBody>
