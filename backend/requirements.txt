@@ -1,0 +1,12 @@
+Django==4.2.19
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.0
+psycopg2-binary==2.9.9
+python-decouple==3.8
+django-environ==0.11.2
+celery==5.3.4
+redis==5.0.1
+Pillow>=10.0.0
+qrcode==7.4.2
+pyotp==2.9.0

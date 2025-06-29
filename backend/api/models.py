@@ -29,6 +29,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     verification_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    
+    # 2FA fields
+    two_factor_enabled = models.BooleanField(default=False)
+    two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name"]

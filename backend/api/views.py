@@ -10,6 +10,10 @@ from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from .utils import send_verification_email, send_password_reset_email
 import uuid
+import pyotp
+import qrcode
+import io
+import base64
 from .models import UserSession
 
 User = get_user_model()
@@ -24,30 +28,67 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = authenticate(email=serializer.validated_data["email"], password=serializer.validated_data["password"])
-            if user:
-                refresh = RefreshToken.for_user(user)
+            email = serializer.validated_data["email"]
+            password = serializer.validated_data["password"]
+            
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Check if email is verified
+            if not user.email_verified:
+                return Response({
+                    "error": "Email not verified", 
+                    "message": "Please verify your email before logging in. Check your inbox for the verification link."
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Check password
+            if not user.check_password(password):
+                return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Check if 2FA is enabled
+            if user.two_factor_enabled:
+                token_2fa = request.data.get("two_factor_token")
+                if not token_2fa:
+                    return Response({
+                        "requires_2fa": True,
+                        "message": "2FA token required"
+                    }, status=status.HTTP_200_OK)
+                
+                # Verify 2FA token
+                totp = pyotp.TOTP(user.two_factor_secret)
+                if not totp.verify(token_2fa):
+                    return Response({"error": "Invalid 2FA token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-                # Create a session entry
-                session_id = str(uuid.uuid4())
-                ip_address = request.META.get("REMOTE_ADDR")
-                device_info = request.META.get("HTTP_USER_AGENT")
+            refresh = RefreshToken.for_user(user)
 
-                UserSession.objects.create(
-                    user=user,
-                    session_id=session_id,
-                    ip_address=ip_address,
-                    device_info=device_info
-                )
+            # Create a session entry
+            session_id = str(uuid.uuid4())
+            ip_address = request.META.get("REMOTE_ADDR")
+            device_info = request.META.get("HTTP_USER_AGENT")
 
-                return Response(
-                    {
-                        "refresh": str(refresh),
-                        "access": str(refresh.access_token),
-                        "session_id": session_id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
+            UserSession.objects.create(
+                user=user,
+                session_id=session_id,
+                ip_address=ip_address,
+                device_info=device_info
+            )
+
+            return Response(
+                {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                    "session_id": session_id,
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "name": user.name,
+                        "two_factor_enabled": user.two_factor_enabled
+                    }
+                },
+                status=status.HTTP_200_OK,
+            )
         return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 class LogoutView(APIView):
@@ -139,3 +180,75 @@ class LogoutDeviceView(APIView):
             return Response({"message": "Logged out from device"}, status=status.HTTP_200_OK)
         except UserSession.DoesNotExist:
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class Setup2FAView(APIView):
+    """Set up 2FA for user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.two_factor_enabled:
+            return Response({"error": "2FA is already enabled"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate secret
+        secret = pyotp.random_base32()
+        user.two_factor_secret = secret
+        user.save()
+
+        # Generate QR code
+        totp = pyotp.TOTP(secret)
+        provisioning_uri = totp.provisioning_uri(
+            name=user.email,
+            issuer_name="FinMate"
+        )
+        
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(provisioning_uri)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        qr_code_data = base64.b64encode(buffer.getvalue()).decode()
+
+        return Response({
+            "secret": secret,
+            "qr_code": f"data:image/png;base64,{qr_code_data}",
+            "manual_entry_key": secret
+        }, status=status.HTTP_200_OK)
+
+class Verify2FAView(APIView):
+    """Verify 2FA setup."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        token = request.data.get("token")
+        
+        if not user.two_factor_secret:
+            return Response({"error": "2FA not set up"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        totp = pyotp.TOTP(user.two_factor_secret)
+        if totp.verify(token):
+            user.two_factor_enabled = True
+            user.save()
+            return Response({"message": "2FA enabled successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+
+class Disable2FAView(APIView):
+    """Disable 2FA for user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        password = request.data.get("password")
+        
+        if not user.check_password(password):
+            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.two_factor_enabled = False
+        user.two_factor_secret = None
+        user.save()
+        
+        return Response({"message": "2FA disabled successfully"}, status=status.HTTP_200_OK)
