@@ -5,7 +5,10 @@ from api.views import (
     SignupView, LoginView, LogoutView, VerifyEmailView, ActiveSessionsView, 
     LogoutDeviceView, PasswordResetView, PasswordResetRequestView,
     Setup2FAView, Verify2FAView, Disable2FAView,
-    CategoryViewSet, AccountViewSet, TransactionViewSet, BudgetViewSet, RecurringTransactionViewSet
+    CategoryViewSet, AccountViewSet, TransactionViewSet, BudgetViewSet, RecurringTransactionViewSet,
+    NotificationViewSet, NotificationPreferenceViewSet, AIInsightViewSet, 
+    SavingsGoalViewSet, ExpensePredictionView, AnomalyDetectionView,
+    BudgetInsightsView, WeeklySummaryView
 )
 from api.plaid_views import (
     create_link_token, exchange_public_token, sync_transactions, disconnect_account
@@ -18,6 +21,12 @@ router.register(r'accounts', AccountViewSet, basename='accounts')
 router.register(r'transactions', TransactionViewSet, basename='transactions')
 router.register(r'budgets', BudgetViewSet, basename='budgets')
 router.register(r'recurring-transactions', RecurringTransactionViewSet, basename='recurring-transactions')
+
+# AI and Notifications
+router.register(r'notifications', NotificationViewSet, basename='notifications')
+router.register(r'notification-preferences', NotificationPreferenceViewSet, basename='notification-preferences')
+router.register(r'ai-insights', AIInsightViewSet, basename='ai-insights')
+router.register(r'savings-goals', SavingsGoalViewSet, basename='savings-goals')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -43,4 +52,10 @@ urlpatterns = [
     
     # Transaction management endpoints
     path('api/', include(router.urls)),
+    
+    # AI Insights and Analytics endpoints
+    path('api/expense-prediction/', ExpensePredictionView.as_view(), name='expense_prediction'),
+    path('api/anomaly-detection/', AnomalyDetectionView.as_view(), name='anomaly_detection'),
+    path('api/budget-insights/', BudgetInsightsView.as_view(), name='budget_insights'),
+    path('api/weekly-summary/', WeeklySummaryView.as_view(), name='weekly_summary'),
 ]
