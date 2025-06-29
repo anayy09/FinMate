@@ -218,7 +218,6 @@ const NotificationCenter = () => {
     <>
       <Button
         variant="ghost"
-        size="sm"
         onClick={onOpen}
         position="relative"
         aria-label="Notifications"
