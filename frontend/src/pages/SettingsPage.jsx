@@ -46,8 +46,11 @@ import {
   StatNumber,
   StatHelpText,
   Progress,
+  Avatar,
+  AvatarBadge,
+  Textarea,
 } from "@chakra-ui/react";
-import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope, FaEdit } from "react-icons/fa";
+import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope, FaEdit, FaUser, FaCalendar, FaMapMarkerAlt, FaPhone } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import axios from "axios";
@@ -88,6 +91,7 @@ export default function SettingsPage() {
   // Modals
   const { isOpen: isDisable2FAOpen, onOpen: onDisable2FAOpen, onClose: onDisable2FAClose } = useDisclosure();
   const { isOpen: isEditAccountOpen, onOpen: onEditAccountOpen, onClose: onEditAccountClose } = useDisclosure();
+  const { isOpen: isEditProfileOpen, onOpen: onEditProfileOpen, onClose: onEditProfileClose } = useDisclosure();
   const [disablePassword, setDisablePassword] = useState("");
   
   // Edit account states
@@ -97,6 +101,35 @@ export default function SettingsPage() {
     auto_sync_enabled: false,
     sync_frequency: 'daily'
   });
+
+  // Profile states
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    bio: user?.bio || '',
+    location: user?.location || '',
+    dateOfBirth: user?.date_of_birth || '',
+    occupation: user?.occupation || '',
+    currency: user?.preferred_currency || 'USD'
+  });
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  
+  // Update profile data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        dateOfBirth: user.date_of_birth || '',
+        occupation: user.occupation || '',
+        currency: user.preferred_currency || 'USD'
+      });
+    }
+  }, [user]);
   
   // Bank Accounts states
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -456,6 +489,82 @@ export default function SettingsPage() {
     onEditAccountClose();
   };
 
+  // Profile Functions
+  const handleEditProfile = () => {
+    setProfileData({
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      bio: user?.bio || '',
+      location: user?.location || '',
+      dateOfBirth: user?.date_of_birth || '',
+      occupation: user?.occupation || '',
+      currency: user?.preferred_currency || 'USD'
+    });
+    onEditProfileOpen();
+  };
+
+  const handleSaveProfile = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await axios.patch(`${API_URL}/user/profile/`, {
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        bio: profileData.bio,
+        location: profileData.location,
+        date_of_birth: profileData.dateOfBirth,
+        occupation: profileData.occupation,
+        preferred_currency: profileData.currency
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Refresh user profile data from the backend
+      if (fetchUserProfile) {
+        await fetchUserProfile();
+      }
+      
+      onEditProfileClose();
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update profile",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleCloseProfileModal = () => {
+    setProfileData({
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      bio: user?.bio || '',
+      location: user?.location || '',
+      dateOfBirth: user?.date_of_birth || '',
+      occupation: user?.occupation || '',
+      currency: user?.preferred_currency || 'USD'
+    });
+    onEditProfileClose();
+  };
+
   // Report Functions
   const handleDownloadReport = async (period, format) => {
     try {
@@ -730,27 +839,209 @@ export default function SettingsPage() {
 
             {/* Profile Tab */}
             <TabPanel>
-              <Card bg={cardBg}>
-                <CardBody>
-                  <VStack align="stretch" spacing={4}>
-                    <Heading size="md">Profile Information</Heading>
-                    <VStack align="stretch" spacing={3}>
-                      <HStack justify="space-between">
-                        <Text>Name:</Text>
-                        <Text fontWeight="medium">{user.name}</Text>
-                      </HStack>
-                      <HStack justify="space-between">
-                        <Text>Email:</Text>
-                        <Text fontWeight="medium">{user.email}</Text>
-                      </HStack>
-                      <HStack justify="space-between">
-                        <Text>Account Status:</Text>
-                        <Badge colorScheme="green">Active</Badge>
-                      </HStack>
+              <VStack spacing={6} align="stretch">
+                {/* Profile Header Card */}
+                <Card bg={cardBg}>
+                  <CardBody>
+                    <Flex direction={{ base: "column", md: "row" }} align="center" gap={6}>
+                      <Avatar
+                        size="2xl"
+                        name={user?.name}
+                        src={user?.avatar}
+                        bg={useColorModeValue('blue.500', 'blue.300')}
+                      >
+                        <AvatarBadge
+                          boxSize="1.25em"
+                          bg="green.500"
+                          borderColor={useColorModeValue('white', 'gray.800')}
+                        />
+                      </Avatar>
+                      
+                      <VStack align={{ base: "center", md: "start" }} spacing={3} flex={1}>
+                        <VStack align={{ base: "center", md: "start" }} spacing={1}>
+                          <Heading size="lg" color={useColorModeValue('gray.800', 'gray.100')}>
+                            {user?.name || 'User Name'}
+                          </Heading>
+                          <Text color="gray.500" fontSize="md">
+                            {user?.email}
+                          </Text>
+                          {user?.occupation && (
+                            <Text color="gray.600" fontSize="sm">
+                              {user.occupation}
+                            </Text>
+                          )}
+                        </VStack>
+                        
+                        <HStack spacing={3}>
+                          <Badge colorScheme="green" variant="solid">
+                            Active Account
+                          </Badge>
+                          <Badge colorScheme="blue" variant="outline">
+                            Member since {new Date(user?.date_joined || Date.now()).getFullYear()}
+                          </Badge>
+                        </HStack>
+                      </VStack>
+
+                      <Button
+                        leftIcon={<FaEdit />}
+                        colorScheme="blue"
+                        onClick={handleEditProfile}
+                        size="md"
+                      >
+                        Edit Profile
+                      </Button>
+                    </Flex>
+                  </CardBody>
+                </Card>
+
+                {/* Profile Details Grid */}
+                <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                  {/* Personal Information */}
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <VStack align="stretch" spacing={4}>
+                        <HStack>
+                          <Box color={useColorModeValue('blue.500', 'blue.300')}>
+                            <FaUser size={20} />
+                          </Box>
+                          <Heading size="sm">Personal Information</Heading>
+                        </HStack>
+                        
+                        <VStack align="stretch" spacing={3}>
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Full Name:</Text>
+                            <Text fontWeight="medium">{user?.name || 'Not provided'}</Text>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Email:</Text>
+                            <Text fontWeight="medium">{user?.email}</Text>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Phone:</Text>
+                            <Text fontWeight="medium" color={user?.phone ? 'inherit' : 'gray.400'}>
+                              {user?.phone || 'Not provided'}
+                            </Text>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Date of Birth:</Text>
+                            <Text fontWeight="medium" color={user?.date_of_birth ? 'inherit' : 'gray.400'}>
+                              {user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString() : 'Not provided'}
+                            </Text>
+                          </HStack>
+                        </VStack>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+
+                  {/* Additional Details */}
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <VStack align="stretch" spacing={4}>
+                        <HStack>
+                          <Box color={useColorModeValue('green.500', 'green.300')}>
+                            <FaMapMarkerAlt size={20} />
+                          </Box>
+                          <Heading size="sm">Additional Details</Heading>
+                        </HStack>
+                        
+                        <VStack align="stretch" spacing={3}>
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Location:</Text>
+                            <Text fontWeight="medium" color={user?.location ? 'inherit' : 'gray.400'}>
+                              {user?.location || 'Not provided'}
+                            </Text>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Occupation:</Text>
+                            <Text fontWeight="medium" color={user?.occupation ? 'inherit' : 'gray.400'}>
+                              {user?.occupation || 'Not provided'}
+                            </Text>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Preferred Currency:</Text>
+                            <Badge colorScheme="blue" variant="outline">
+                              {user?.preferred_currency || 'USD'}
+                            </Badge>
+                          </HStack>
+                          <Divider />
+                          
+                          <HStack justify="space-between" py={2}>
+                            <Text color="gray.600" fontSize="sm">Account Type:</Text>
+                            <Badge colorScheme="purple" variant="solid">
+                              {user?.is_premium ? 'Premium' : 'Free'}
+                            </Badge>
+                          </HStack>
+                        </VStack>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                </SimpleGrid>
+
+                {/* Bio Section */}
+                {user?.bio && (
+                  <Card bg={cardBg}>
+                    <CardBody>
+                      <VStack align="stretch" spacing={4}>
+                        <Heading size="sm">About</Heading>
+                        <Text color="gray.600" lineHeight="tall">
+                          {user.bio}
+                        </Text>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                )}
+
+                {/* Account Statistics */}
+                <Card bg={cardBg}>
+                  <CardBody>
+                    <VStack align="stretch" spacing={4}>
+                      <Heading size="sm">Account Statistics</Heading>
+                      <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
+                        <Stat textAlign="center">
+                          <StatLabel fontSize="xs" color="gray.500">Member Since</StatLabel>
+                          <StatNumber fontSize="lg">
+                            {new Date(user?.date_joined || Date.now()).toLocaleDateString()}
+                          </StatNumber>
+                        </Stat>
+                        <Stat textAlign="center">
+                          <StatLabel fontSize="xs" color="gray.500">Last Login</StatLabel>
+                          <StatNumber fontSize="lg">
+                            {user?.last_login ? new Date(user.last_login).toLocaleDateString() : 'Today'}
+                          </StatNumber>
+                        </Stat>
+                        <Stat textAlign="center">
+                          <StatLabel fontSize="xs" color="gray.500">Profile Complete</StatLabel>
+                          <StatNumber fontSize="lg">
+                            {Math.round(
+                              ((user?.name ? 1 : 0) + 
+                               (user?.phone ? 1 : 0) + 
+                               (user?.location ? 1 : 0) + 
+                               (user?.occupation ? 1 : 0) + 
+                               (user?.bio ? 1 : 0)) / 5 * 100
+                            )}%
+                          </StatNumber>
+                        </Stat>
+                        <Stat textAlign="center">
+                          <StatLabel fontSize="xs" color="gray.500">Security Level</StatLabel>
+                          <StatNumber fontSize="lg" color={twoFactorEnabled ? 'green.500' : 'orange.500'}>
+                            {twoFactorEnabled ? 'High' : 'Medium'}
+                          </StatNumber>
+                        </Stat>
+                      </SimpleGrid>
                     </VStack>
-                  </VStack>
-                </CardBody>
-              </Card>
+                  </CardBody>
+                </Card>
+              </VStack>
             </TabPanel>
 
             {/* Bank Accounts Tab */}
@@ -1192,6 +1483,144 @@ export default function SettingsPage() {
               colorScheme="blue"
               onClick={handleSaveAccountEdit}
               disabled={!editAccountData.name.trim()}
+            >
+              Save Changes
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* Edit Profile Modal */}
+      <Modal isOpen={isEditProfileOpen} onClose={handleCloseProfileModal} size="lg">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Profile</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <FormControl>
+                  <FormLabel>Full Name</FormLabel>
+                  <Input
+                    placeholder="Enter your full name"
+                    value={profileData.name}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      name: e.target.value
+                    })}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={profileData.email}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      email: e.target.value
+                    })}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Phone Number</FormLabel>
+                  <Input
+                    placeholder="Enter your phone number"
+                    value={profileData.phone}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      phone: e.target.value
+                    })}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Date of Birth</FormLabel>
+                  <Input
+                    type="date"
+                    value={profileData.dateOfBirth}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      dateOfBirth: e.target.value
+                    })}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Location</FormLabel>
+                  <Input
+                    placeholder="City, Country"
+                    value={profileData.location}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      location: e.target.value
+                    })}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Occupation</FormLabel>
+                  <Input
+                    placeholder="Enter your occupation"
+                    value={profileData.occupation}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      occupation: e.target.value
+                    })}
+                  />
+                </FormControl>
+              </SimpleGrid>
+
+              <FormControl>
+                <FormLabel>Preferred Currency</FormLabel>
+                <Select
+                  value={profileData.currency}
+                  onChange={(e) => setProfileData({
+                    ...profileData,
+                    currency: e.target.value
+                  })}
+                >
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                  <option value="CAD">CAD - Canadian Dollar</option>
+                  <option value="AUD">AUD - Australian Dollar</option>
+                  <option value="JPY">JPY - Japanese Yen</option>
+                  <option value="INR">INR - Indian Rupee</option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Bio</FormLabel>
+                <Textarea
+                  placeholder="Tell us about yourself..."
+                  value={profileData.bio}
+                  onChange={(e) => setProfileData({
+                    ...profileData,
+                    bio: e.target.value
+                  })}
+                  rows={3}
+                />
+              </FormControl>
+
+              <Box p={3} bg={useColorModeValue('green.50', 'green.900')} borderRadius="md" w="full">
+                <Text fontSize="sm" color={useColorModeValue('green.600', 'green.300')}>
+                  <strong>Tip:</strong> Completing your profile helps us provide better financial insights and recommendations.
+                </Text>
+              </Box>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={handleCloseProfileModal}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleSaveProfile}
+              isLoading={isUpdatingProfile}
+              loadingText="Saving..."
+              disabled={!profileData.name.trim() || !profileData.email.trim()}
             >
               Save Changes
             </Button>
