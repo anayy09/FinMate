@@ -47,7 +47,7 @@ import {
   StatHelpText,
   Progress,
 } from "@chakra-ui/react";
-import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope } from "react-icons/fa";
+import { FaTrash, FaMobile, FaDesktop, FaTablet, FaDownload, FaUniversity, FaSync, FaEnvelope, FaEdit } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import axios from "axios";
@@ -87,7 +87,16 @@ export default function SettingsPage() {
   
   // Modals
   const { isOpen: isDisable2FAOpen, onOpen: onDisable2FAOpen, onClose: onDisable2FAClose } = useDisclosure();
+  const { isOpen: isEditAccountOpen, onOpen: onEditAccountOpen, onClose: onEditAccountClose } = useDisclosure();
   const [disablePassword, setDisablePassword] = useState("");
+  
+  // Edit account states
+  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [editAccountData, setEditAccountData] = useState({
+    name: '',
+    auto_sync_enabled: false,
+    sync_frequency: 'daily'
+  });
   
   // Bank Accounts states
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -394,6 +403,57 @@ export default function SettingsPage() {
         });
       }
     }
+  };
+
+  const handleEditAccount = (account) => {
+    setSelectedAccount(account);
+    setEditAccountData({
+      name: account.name || '',
+      auto_sync_enabled: account.auto_sync_enabled || false,
+      sync_frequency: account.sync_frequency || 'daily'
+    });
+    onEditAccountOpen();
+  };
+
+  const handleSaveAccountEdit = async () => {
+    if (!selectedAccount) return;
+    
+    try {
+      await updateBankAccountSettings(selectedAccount.id, {
+        name: editAccountData.name,
+        auto_sync_enabled: editAccountData.auto_sync_enabled,
+        sync_frequency: editAccountData.sync_frequency
+      });
+      
+      toast({
+        title: "Success",
+        description: "Account settings updated successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      fetchBankAccounts();
+      onEditAccountClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update account settings",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setSelectedAccount(null);
+    setEditAccountData({
+      name: '',
+      auto_sync_enabled: false,
+      sync_frequency: 'daily'
+    });
+    onEditAccountClose();
   };
 
   // Report Functions
@@ -876,29 +936,41 @@ export default function SettingsPage() {
 
                                   {/* Actions */}
                                   <VStack spacing={2} w="full">
-                                    {account.is_plaid_account && (
+                                    <HStack spacing={2} w="full">
                                       <Button
                                         size="sm"
-                                        colorScheme="blue"
+                                        colorScheme="gray"
                                         variant="outline"
-                                        w="full"
-                                        leftIcon={<FaSync />}
-                                        onClick={() => handleSyncAccount(account.id)}
-                                        isLoading={isSyncing}
+                                        flex={1}
+                                        leftIcon={<FaEdit />}
+                                        onClick={() => handleEditAccount(account)}
                                       >
-                                        Sync Now
+                                        Edit
                                       </Button>
-                                    )}
+                                      {account.is_plaid_account && (
+                                        <Button
+                                          size="sm"
+                                          colorScheme="blue"
+                                          variant="outline"
+                                          flex={1}
+                                          leftIcon={<FaSync />}
+                                          onClick={() => handleSyncAccount(account.id)}
+                                          isLoading={isSyncing}
+                                        >
+                                          Sync
+                                        </Button>
+                                      )}
                                     <Button
                                       size="sm"
                                       colorScheme="red"
                                       variant="outline"
-                                      w="full"
+                                      flex={1}
                                       leftIcon={<FaTrash />}
                                       onClick={() => handleDisconnectAccount(account.id)}
                                     >
                                       Disconnect
                                     </Button>
+                                    </HStack>
                                   </VStack>
                                 </VStack>
                               </CardBody>
@@ -1047,6 +1119,81 @@ export default function SettingsPage() {
               disabled={!disablePassword}
             >
               Disable 2FA
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Account Modal */}
+      <Modal isOpen={isEditAccountOpen} onClose={handleCloseEditModal}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Bank Account</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel>Account Name</FormLabel>
+                <Input
+                  placeholder="Enter account name"
+                  value={editAccountData.name}
+                  onChange={(e) => setEditAccountData({
+                    ...editAccountData,
+                    name: e.target.value
+                  })}
+                />
+              </FormControl>
+
+              {selectedAccount?.is_plaid_account && (
+                <>
+                  <FormControl display="flex" alignItems="center">
+                    <FormLabel mb="0" flex={1}>
+                      Enable Auto Sync
+                    </FormLabel>
+                    <Switch
+                      isChecked={editAccountData.auto_sync_enabled}
+                      onChange={(e) => setEditAccountData({
+                        ...editAccountData,
+                        auto_sync_enabled: e.target.checked
+                      })}
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Sync Frequency</FormLabel>
+                    <Select
+                      value={editAccountData.sync_frequency}
+                      onChange={(e) => setEditAccountData({
+                        ...editAccountData,
+                        sync_frequency: e.target.value
+                      })}
+                    >
+                      <option value="hourly">Hourly</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="manual">Manual Only</option>
+                    </Select>
+                  </FormControl>
+                </>
+              )}
+
+              <Box p={3} bg={useColorModeValue('blue.50', 'blue.900')} borderRadius="md" w="full">
+                <Text fontSize="sm" color={useColorModeValue('blue.600', 'blue.300')}>
+                  <strong>Note:</strong> Some settings may be limited based on your bank's API capabilities.
+                </Text>
+              </Box>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={handleCloseEditModal}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleSaveAccountEdit}
+              disabled={!editAccountData.name.trim()}
+            >
+              Save Changes
             </Button>
           </ModalFooter>
         </ModalContent>
