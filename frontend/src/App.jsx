@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -21,9 +22,21 @@ export default function App() {
           <Route path="/info" element={<InformationPage />} />
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/password-reset/:token" element={<PasswordResetPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/transactions" element={<TransactionsPage />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/transactions" element={
+            <ProtectedRoute>
+              <TransactionsPage />
+            </ProtectedRoute>
+          } />
         </Routes>
       </Router>
     </AuthProvider>
