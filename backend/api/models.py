@@ -2,6 +2,7 @@ import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -52,3 +53,159 @@ class UserSession(models.Model):
 
     def __str__(self):
         return f"Session {self.session_id} for {self.user.email}"
+
+class Category(models.Model):
+    """Transaction categories for expense classification."""
+    CATEGORY_TYPES = [
+        ('expense', 'Expense'),
+        ('income', 'Income'),
+        ('transfer', 'Transfer'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    category_type = models.CharField(max_length=10, choices=CATEGORY_TYPES, default='expense')
+    description = models.TextField(blank=True, null=True)
+    icon = models.CharField(max_length=50, blank=True, null=True)  # Font Awesome icon class
+    color = models.CharField(max_length=7, default='#3182CE')  # Hex color code
+    is_default = models.BooleanField(default=False)  # System default categories
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.category_type})"
+
+class Account(models.Model):
+    """User's financial accounts (bank accounts, credit cards, etc.)"""
+    ACCOUNT_TYPES = [
+        ('checking', 'Checking Account'),
+        ('savings', 'Savings Account'),
+        ('credit_card', 'Credit Card'),
+        ('cash', 'Cash'),
+        ('investment', 'Investment Account'),
+        ('loan', 'Loan Account'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts')
+    name = models.CharField(max_length=100)
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    currency = models.CharField(max_length=3, default='USD')
+    
+    # Plaid integration fields
+    plaid_account_id = models.CharField(max_length=100, blank=True, null=True)
+    plaid_access_token = models.CharField(max_length=200, blank=True, null=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_account_type_display()})"
+
+class Transaction(models.Model):
+    """Individual financial transactions."""
+    TRANSACTION_TYPES = [
+        ('expense', 'Expense'),
+        ('income', 'Income'),
+        ('transfer', 'Transfer'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='transactions')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    description = models.CharField(max_length=255)
+    notes = models.TextField(blank=True, null=True)
+    
+    transaction_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Plaid integration fields
+    plaid_transaction_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    merchant_name = models.CharField(max_length=200, blank=True, null=True)
+    
+    # Location data
+    location = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Auto-categorization confidence score
+    categorization_confidence = models.FloatField(default=0.0)
+    is_recurring = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-transaction_date', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'transaction_date']),
+            models.Index(fields=['user', 'category']),
+            models.Index(fields=['plaid_transaction_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.description} - ${self.amount} ({self.transaction_date})"
+
+class Budget(models.Model):
+    """Monthly budgets for categories."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='budgets')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    month = models.DateField()  # First day of the month
+    
+    # Budget tracking
+    spent_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    remaining_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['user', 'category', 'month']
+        ordering = ['-month', 'category__name']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.category.name} - {self.month.strftime('%B %Y')}"
+
+    def calculate_remaining(self):
+        """Calculate remaining budget amount."""
+        self.remaining_amount = self.amount - self.spent_amount
+        return self.remaining_amount
+
+class RecurringTransaction(models.Model):
+    """Template for recurring transactions (subscriptions, bills, etc.)"""
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recurring_transactions')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=Transaction.TRANSACTION_TYPES)
+    description = models.CharField(max_length=255)
+    
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    next_due_date = models.DateField()
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['next_due_date']
+
+    def __str__(self):
+        return f"{self.description} - ${self.amount} ({self.frequency})"

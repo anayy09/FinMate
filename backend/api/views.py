@@ -252,3 +252,276 @@ class Disable2FAView(APIView):
         user.save()
         
         return Response({"message": "2FA disabled successfully"}, status=status.HTTP_200_OK)
+
+# Transaction Management Views
+from rest_framework import viewsets, filters
+from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth, TruncDay
+from datetime import datetime, timedelta
+from decimal import Decimal
+from .models import Category, Account, Transaction, Budget, RecurringTransaction
+from .serializers import (
+    CategorySerializer, AccountSerializer, TransactionSerializer, 
+    TransactionCreateSerializer, BudgetSerializer, RecurringTransactionSerializer,
+    TransactionAnalyticsSerializer, CategoryAnalyticsSerializer
+)
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing transaction categories."""
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['name', 'description']
+    filterset_fields = ['category_type']
+    
+    def get_queryset(self):
+        # Return only default categories (shared across all users)
+        return Category.objects.filter(is_default=True).order_by('name')
+
+class AccountViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing user accounts."""
+    serializer_class = AccountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['name']
+    filterset_fields = ['account_type', 'is_active']
+    
+    def get_queryset(self):
+        return Account.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def update_balance(self, request, pk=None):
+        """Update account balance."""
+        account = self.get_object()
+        new_balance = request.data.get('balance')
+        
+        if new_balance is not None:
+            try:
+                account.balance = Decimal(str(new_balance))
+                account.save()
+                return Response({'message': 'Balance updated successfully'})
+            except (ValueError, TypeError):
+                return Response({'error': 'Invalid balance amount'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'error': 'Balance is required'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+
+class TransactionViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing transactions."""
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    search_fields = ['description', 'merchant_name', 'notes']
+    filterset_fields = ['transaction_type', 'category', 'account']
+    ordering_fields = ['transaction_date', 'amount', 'created_at']
+    ordering = ['-transaction_date', '-created_at']
+    
+    def get_queryset(self):
+        queryset = Transaction.objects.filter(user=self.request.user).select_related(
+            'category', 'account'
+        )
+        
+        # Date filtering
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        if start_date:
+            queryset = queryset.filter(transaction_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(transaction_date__lte=end_date)
+            
+        return queryset
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return TransactionCreateSerializer
+        return TransactionSerializer
+    
+    def perform_create(self, serializer):
+        transaction = serializer.save(user=self.request.user)
+        
+        # Update account balance
+        account = transaction.account
+        if transaction.transaction_type == 'expense':
+            account.balance -= transaction.amount
+        elif transaction.transaction_type == 'income':
+            account.balance += transaction.amount
+        account.save()
+        
+        # Auto-categorize if no category is provided
+        if not transaction.category:
+            self.auto_categorize_transaction(transaction)
+    
+    def perform_update(self, serializer):
+        old_transaction = self.get_object()
+        new_transaction = serializer.save()
+        
+        # Update account balance (reverse old transaction and apply new one)
+        account = new_transaction.account
+        
+        # Reverse old transaction
+        if old_transaction.transaction_type == 'expense':
+            account.balance += old_transaction.amount
+        elif old_transaction.transaction_type == 'income':
+            account.balance -= old_transaction.amount
+            
+        # Apply new transaction
+        if new_transaction.transaction_type == 'expense':
+            account.balance -= new_transaction.amount
+        elif new_transaction.transaction_type == 'income':
+            account.balance += new_transaction.amount
+            
+        account.save()
+    
+    def perform_destroy(self, instance):
+        # Update account balance
+        account = instance.account
+        if instance.transaction_type == 'expense':
+            account.balance += instance.amount
+        elif instance.transaction_type == 'income':
+            account.balance -= instance.amount
+        account.save()
+        
+        instance.delete()
+    
+    def auto_categorize_transaction(self, transaction):
+        """Auto-categorize transaction using simple ML logic."""
+        description = transaction.description.lower()
+        merchant = (transaction.merchant_name or '').lower()
+        text = f"{description} {merchant}"
+        
+        # Simple keyword-based categorization
+        category_keywords = {
+            'food': ['restaurant', 'food', 'pizza', 'burger', 'coffee', 'starbucks', 'mcdonalds'],
+            'transport': ['uber', 'lyft', 'gas', 'fuel', 'parking', 'metro', 'bus'],
+            'shopping': ['amazon', 'walmart', 'target', 'store', 'shop', 'market'],
+            'entertainment': ['netflix', 'spotify', 'movie', 'cinema', 'game'],
+            'utilities': ['electric', 'water', 'internet', 'phone', 'utility'],
+            'healthcare': ['pharmacy', 'doctor', 'hospital', 'medical', 'health'],
+            'groceries': ['grocery', 'supermarket', 'whole foods', 'kroger'],
+        }
+        
+        best_category = None
+        best_confidence = 0.0
+        
+        for category_name, keywords in category_keywords.items():
+            confidence = sum(1 for keyword in keywords if keyword in text) / len(keywords)
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_category = category_name
+        
+        if best_category and best_confidence > 0.1:
+            try:
+                category = Category.objects.get(
+                    name__icontains=best_category,
+                    category_type='expense'
+                )
+                transaction.category = category
+                transaction.categorization_confidence = best_confidence
+                transaction.save()
+            except Category.DoesNotExist:
+                pass
+    
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        """Get transaction analytics."""
+        user = request.user
+        
+        # Date range (default to current month)
+        end_date = datetime.now().date()
+        start_date = end_date.replace(day=1)
+        
+        # Override with query params if provided
+        if request.query_params.get('start_date'):
+            start_date = datetime.strptime(request.query_params.get('start_date'), '%Y-%m-%d').date()
+        if request.query_params.get('end_date'):
+            end_date = datetime.strptime(request.query_params.get('end_date'), '%Y-%m-%d').date()
+        
+        # Get transactions in date range
+        transactions = Transaction.objects.filter(
+            user=user,
+            transaction_date__range=[start_date, end_date]
+        )
+        
+        # Calculate totals
+        income_total = transactions.filter(transaction_type='income').aggregate(
+            total=Sum('amount'))['total'] or Decimal('0')
+        expense_total = transactions.filter(transaction_type='expense').aggregate(
+            total=Sum('amount'))['total'] or Decimal('0')
+        
+        # Category breakdown
+        category_breakdown = transactions.filter(
+            transaction_type='expense'
+        ).values(
+            'category__id', 'category__name', 'category__color'
+        ).annotate(
+            total_amount=Sum('amount'),
+            transaction_count=Count('id')
+        ).order_by('-total_amount')
+        
+        # Calculate percentages
+        for item in category_breakdown:
+            if expense_total > 0:
+                item['percentage'] = float(item['total_amount'] / expense_total * 100)
+            else:
+                item['percentage'] = 0
+        
+        # Monthly trends (last 6 months)
+        six_months_ago = end_date - timedelta(days=180)
+        monthly_data = transactions.filter(
+            transaction_date__gte=six_months_ago
+        ).annotate(
+            month=TruncMonth('transaction_date')
+        ).values('month', 'transaction_type').annotate(
+            total=Sum('amount')
+        ).order_by('month')
+        
+        # Recent transactions
+        recent_transactions = transactions.order_by('-transaction_date', '-created_at')[:10]
+        
+        analytics_data = {
+            'total_income': income_total,
+            'total_expenses': expense_total,
+            'net_worth': income_total - expense_total,
+            'transaction_count': transactions.count(),
+            'category_breakdown': list(category_breakdown),
+            'monthly_trends': list(monthly_data),
+            'recent_transactions': recent_transactions
+        }
+        
+        serializer = TransactionAnalyticsSerializer(analytics_data)
+        return Response(serializer.data)
+
+class BudgetViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing budgets."""
+    serializer_class = BudgetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['category', 'month']
+    
+    def get_queryset(self):
+        return Budget.objects.filter(user=self.request.user).select_related('category')
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class RecurringTransactionViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing recurring transactions."""
+    serializer_class = RecurringTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['description']
+    filterset_fields = ['frequency', 'is_active', 'transaction_type']
+    
+    def get_queryset(self):
+        return RecurringTransaction.objects.filter(user=self.request.user).select_related(
+            'category', 'account'
+        )
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
