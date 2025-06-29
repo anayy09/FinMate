@@ -68,7 +68,7 @@ import {
 
 const API_URL = "http://127.0.0.1:8000/api";
 
-export default function SettingsPage() {
+export default function ProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -652,191 +652,18 @@ export default function SettingsPage() {
     <Box minH="100vh" bg={bg}>
       <Navbar />
       <Container maxW="container.xl" pt="6rem" pb={8}>
-        <Heading size="lg" mb={6}>Settings</Heading>
+        <Heading size="lg" mb={6}>Profile</Heading>
         
         <Tabs>
           <TabList>
-            <Tab>Security</Tab>
-            <Tab>Device Management</Tab>
-            <Tab>Profile</Tab>
+            <Tab>Details</Tab>
             <Tab>Bank Accounts</Tab>
             <Tab>Reports</Tab>
+            <Tab>Security</Tab>
+            <Tab>Device Management</Tab>
           </TabList>
 
           <TabPanels>
-            {/* Security Tab */}
-            <TabPanel>
-              <VStack spacing={6} align="stretch">
-                <Card bg={cardBg}>
-                  <CardBody>
-                    <VStack align="stretch" spacing={4}>
-                      <Box>
-                        <Heading size="md" mb={2}>Two-Factor Authentication</Heading>
-                        <Text color="gray.600" mb={4}>
-                          Add an extra layer of security to your account
-                        </Text>
-                      </Box>
-                      
-                      {twoFactorEnabled ? (
-                        <Alert status="success">
-                          <AlertIcon />
-                          <Box>
-                            <AlertTitle>2FA Enabled!</AlertTitle>
-                            <AlertDescription>
-                              Your account is protected with two-factor authentication.
-                            </AlertDescription>
-                          </Box>
-                        </Alert>
-                      ) : (
-                        <Alert status="warning">
-                          <AlertIcon />
-                          <Box>
-                            <AlertTitle>2FA Not Enabled</AlertTitle>
-                            <AlertDescription>
-                              Your account would be more secure with 2FA enabled.
-                            </AlertDescription>
-                          </Box>
-                        </Alert>
-                      )}
-
-                      {!showSetup && (
-                        <HStack justify="space-between">
-                          <Text>Two-Factor Authentication Status</Text>
-                          <Badge colorScheme={twoFactorEnabled ? "green" : "orange"}>
-                            {twoFactorEnabled ? "Enabled" : "Disabled"}
-                          </Badge>
-                        </HStack>
-                      )}
-
-                      {showSetup && (
-                        <VStack spacing={4} align="stretch">
-                          <Text>Scan this QR code with your authenticator app:</Text>
-                          <Box textAlign="center">
-                            <Image src={qrCode} alt="2FA QR Code" maxW="200px" mx="auto" />
-                          </Box>
-                          <Text fontSize="sm" color="gray.600">
-                            Or enter this code manually: <Text as="span" fontFamily="mono">{secret}</Text>
-                          </Text>
-                          <FormControl>
-                            <FormLabel>Enter verification code</FormLabel>
-                            <Input
-                              placeholder="Enter 6-digit code"
-                              value={verificationToken}
-                              onChange={(e) => setVerificationToken(e.target.value)}
-                            />
-                          </FormControl>
-                        </VStack>
-                      )}
-
-                      <HStack>
-                        {!twoFactorEnabled && !showSetup && (
-                          <Button
-                            colorScheme="green"
-                            onClick={setup2FA}
-                            isLoading={isSetupLoading}
-                          >
-                            Enable 2FA
-                          </Button>
-                        )}
-                        
-                        {showSetup && (
-                          <>
-                            <Button
-                              colorScheme="green"
-                              onClick={verify2FA}
-                              isLoading={isVerifyLoading}
-                              disabled={!verificationToken}
-                            >
-                              Verify & Enable
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setShowSetup(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        )}
-                        
-                        {twoFactorEnabled && (
-                          <Button
-                            colorScheme="red"
-                            variant="outline"
-                            onClick={onDisable2FAOpen}
-                          >
-                            Disable 2FA
-                          </Button>
-                        )}
-                      </HStack>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </VStack>
-            </TabPanel>
-
-            {/* Device Management Tab */}
-            <TabPanel>
-              <Card bg={cardBg}>
-                <CardBody>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Heading size="md" mb={2}>Active Sessions</Heading>
-                      <Text color="gray.600" mb={4}>
-                        Manage devices that are signed into your account
-                      </Text>
-                    </Box>
-
-                    {isLoadingSessions ? (
-                      <Flex justify="center" py={8}>
-                        <Spinner />
-                      </Flex>
-                    ) : (
-                      <VStack spacing={3} align="stretch">
-                        {sessions.map((session, index) => {
-                          const DeviceIcon = getDeviceIcon(session.device_info);
-                          return (
-                            <Box key={session.session_id}>
-                              <Flex justify="space-between" align="center" p={4} border="1px" borderColor="gray.200" rounded="md">
-                                <HStack spacing={3}>
-                                  <Box color="gray.500">
-                                    <DeviceIcon size={20} />
-                                  </Box>
-                                  <VStack align="start" spacing={1}>
-                                    <Text fontWeight="medium">
-                                      {session.device_info?.includes("Chrome") ? "Chrome Browser" : 
-                                       session.device_info?.includes("Firefox") ? "Firefox Browser" :
-                                       session.device_info?.includes("Safari") ? "Safari Browser" : "Unknown Device"}
-                                    </Text>
-                                    <Text fontSize="sm" color="gray.600">
-                                      IP: {session.ip_address} • {new Date(session.created_at).toLocaleDateString()}
-                                    </Text>
-                                  </VStack>
-                                </HStack>
-                                <IconButton
-                                  aria-label="Log out device"
-                                  icon={<FaTrash />}
-                                  colorScheme="red"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => logoutDevice(session.session_id)}
-                                />
-                              </Flex>
-                              {index < sessions.length - 1 && <Divider />}
-                            </Box>
-                          );
-                        })}
-                        {sessions.length === 0 && (
-                          <Text textAlign="center" color="gray.500" py={8}>
-                            No active sessions found
-                          </Text>
-                        )}
-                      </VStack>
-                    )}
-                  </VStack>
-                </CardBody>
-              </Card>
-            </TabPanel>
-
             {/* Profile Tab */}
             <TabPanel>
               <VStack spacing={6} align="stretch">
@@ -1376,6 +1203,180 @@ export default function SettingsPage() {
                 </Card>
               </VStack>
             </TabPanel>
+
+            {/* Security Tab */}
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <Card bg={cardBg}>
+                  <CardBody>
+                    <VStack align="stretch" spacing={4}>
+                      <Box>
+                        <Heading size="md" mb={2}>Two-Factor Authentication</Heading>
+                        <Text color="gray.600" mb={4}>
+                          Add an extra layer of security to your account
+                        </Text>
+                      </Box>
+                      
+                      {twoFactorEnabled ? (
+                        <Alert status="success">
+                          <AlertIcon />
+                          <Box>
+                            <AlertTitle>2FA Enabled!</AlertTitle>
+                            <AlertDescription>
+                              Your account is protected with two-factor authentication.
+                            </AlertDescription>
+                          </Box>
+                        </Alert>
+                      ) : (
+                        <Alert status="warning">
+                          <AlertIcon />
+                          <Box>
+                            <AlertTitle>2FA Not Enabled</AlertTitle>
+                            <AlertDescription>
+                              Your account would be more secure with 2FA enabled.
+                            </AlertDescription>
+                          </Box>
+                        </Alert>
+                      )}
+
+                      {!showSetup && (
+                        <HStack justify="space-between">
+                          <Text>Two-Factor Authentication Status</Text>
+                          <Badge colorScheme={twoFactorEnabled ? "green" : "orange"}>
+                            {twoFactorEnabled ? "Enabled" : "Disabled"}
+                          </Badge>
+                        </HStack>
+                      )}
+
+                      {showSetup && (
+                        <VStack spacing={4} align="stretch">
+                          <Text>Scan this QR code with your authenticator app:</Text>
+                          <Box textAlign="center">
+                            <Image src={qrCode} alt="2FA QR Code" maxW="200px" mx="auto" />
+                          </Box>
+                          <Text fontSize="sm" color="gray.600">
+                            Or enter this code manually: <Text as="span" fontFamily="mono">{secret}</Text>
+                          </Text>
+                          <FormControl>
+                            <FormLabel>Enter verification code</FormLabel>
+                            <Input
+                              placeholder="Enter 6-digit code"
+                              value={verificationToken}
+                              onChange={(e) => setVerificationToken(e.target.value)}
+                            />
+                          </FormControl>
+                        </VStack>
+                      )}
+
+                      <HStack>
+                        {!twoFactorEnabled && !showSetup && (
+                          <Button
+                            colorScheme="green"
+                            onClick={setup2FA}
+                            isLoading={isSetupLoading}
+                          >
+                            Enable 2FA
+                          </Button>
+                        )}
+                        
+                        {showSetup && (
+                          <>
+                            <Button
+                              colorScheme="green"
+                              onClick={verify2FA}
+                              isLoading={isVerifyLoading}
+                              disabled={!verificationToken}
+                            >
+                              Verify & Enable
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => setShowSetup(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        
+                        {twoFactorEnabled && (
+                          <Button
+                            colorScheme="red"
+                            variant="outline"
+                            onClick={onDisable2FAOpen}
+                          >
+                            Disable 2FA
+                          </Button>
+                        )}
+                      </HStack>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
+            </TabPanel>
+
+            {/* Device Management Tab */}
+            <TabPanel>
+              <Card bg={cardBg}>
+                <CardBody>
+                  <VStack align="stretch" spacing={4}>
+                    <Box>
+                      <Heading size="md" mb={2}>Active Sessions</Heading>
+                      <Text color="gray.600" mb={4}>
+                        Manage devices that are signed into your account
+                      </Text>
+                    </Box>
+
+                    {isLoadingSessions ? (
+                      <Flex justify="center" py={8}>
+                        <Spinner />
+                      </Flex>
+                    ) : (
+                      <VStack spacing={3} align="stretch">
+                        {sessions.map((session, index) => {
+                          const DeviceIcon = getDeviceIcon(session.device_info);
+                          return (
+                            <Box key={session.session_id}>
+                              <Flex justify="space-between" align="center" p={4} border="1px" borderColor="gray.200" rounded="md">
+                                <HStack spacing={3}>
+                                  <Box color="gray.500">
+                                    <DeviceIcon size={20} />
+                                  </Box>
+                                  <VStack align="start" spacing={1}>
+                                    <Text fontWeight="medium">
+                                      {session.device_info?.includes("Chrome") ? "Chrome Browser" : 
+                                       session.device_info?.includes("Firefox") ? "Firefox Browser" :
+                                       session.device_info?.includes("Safari") ? "Safari Browser" : "Unknown Device"}
+                                    </Text>
+                                    <Text fontSize="sm" color="gray.600">
+                                      IP: {session.ip_address} • {new Date(session.created_at).toLocaleDateString()}
+                                    </Text>
+                                  </VStack>
+                                </HStack>
+                                <IconButton
+                                  aria-label="Log out device"
+                                  icon={<FaTrash />}
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => logoutDevice(session.session_id)}
+                                />
+                              </Flex>
+                              {index < sessions.length - 1 && <Divider />}
+                            </Box>
+                          );
+                        })}
+                        {sessions.length === 0 && (
+                          <Text textAlign="center" color="gray.500" py={8}>
+                            No active sessions found
+                          </Text>
+                        )}
+                      </VStack>
+                    )}
+                  </VStack>
+                </CardBody>
+              </Card>
+            </TabPanel>
+
           </TabPanels>
         </Tabs>
       </Container>

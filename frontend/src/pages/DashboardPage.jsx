@@ -544,7 +544,7 @@ export default function DashboardPage() {
                 <Text fontSize="sm" color="gray.600" mb={3}>
                   Enable two-factor authentication for enhanced security
                 </Text>
-                <Button size="sm" colorScheme="orange" onClick={() => navigate("/settings")}>
+                <Button size="sm" colorScheme="orange" onClick={() => navigate("/profile")}>
                   Security Settings
                 </Button>
               </Box>

@@ -8,7 +8,7 @@ import InformationPage from "./pages/InformationPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import PasswordResetPage from "./pages/PasswordResetPage";
 import DashboardPage from "./pages/DashboardPage";
-import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
 import TransactionsPage from "./pages/TransactionsPage";
 import RecurringTransactionsPage from "./pages/RecurringTransactionsPage";
 import BudgetsPage from "./pages/BudgetsPage";
@@ -30,9 +30,9 @@ export default function App() {
               <DashboardPage />
             </ProtectedRoute>
           } />
-          <Route path="/settings" element={
+          <Route path="/profile" element={
             <ProtectedRoute>
-              <SettingsPage />
+              <ProfilePage />
             </ProtectedRoute>
           } />
           <Route path="/transactions" element={
