@@ -2,6 +2,7 @@ import { Box, Flex, Button, Link, Spacer, useColorModeValue, useToast, HStack } 
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import AuthContext
 import ThemeToggle from "./ThemeToggle";
+import NotificationCenter from "./NotificationCenter";
 
 export default function Navbar() {
   const { user, handleLogout } = useAuth(); // Get user state and logout function from AuthContext
@@ -74,6 +75,7 @@ export default function Navbar() {
         <Flex gap={4}>
           {user ? (
             <>
+              <NotificationCenter />
               <Button 
                 variant={isActive("/settings") ? "solid" : "ghost"}
                 colorScheme={isActive("/settings") ? "blue" : "gray"}

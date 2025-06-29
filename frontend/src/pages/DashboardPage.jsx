@@ -50,6 +50,7 @@ import {
 import { FaWallet, FaUniversity, FaChartLine, FaPlus } from 'react-icons/fa';
 import Navbar from "../components/Navbar";
 import PlaidIntegration from "../components/PlaidIntegration";
+import AIInsights from "../components/AIInsights";
 import { getTransactionAnalytics, getAccounts } from "../api/transactions";
 import api from "../api/auth";
 
@@ -376,116 +377,98 @@ export default function DashboardPage() {
         )}
 
         {/* Advanced Charts Section */}
-        {transactions.length > 0 && (
-          <Grid templateColumns={{ base: "1fr", lg: "repeat(2, 1fr)" }} gap={6} mb={8}>
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={8} mb={8}>
+          <Card>
             {/* Expenses by Category Pie Chart */}
-            <Card bg={cardBg}>
-              <CardHeader>
-                <Heading size="md">Expenses by Category</Heading>
-              </CardHeader>
-              <CardBody>
-                {prepareExpenseByCategory().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={prepareExpenseByCategory()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {prepareExpenseByCategory().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No expense data available for the selected period.
-                  </Alert>
-                )}
-              </CardBody>
-            </Card>
+            <CardHeader pb={2}>
+              <Heading size="md">Expenses by Category</Heading>
+            </CardHeader>
+            <CardBody>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={prepareExpenseByCategory()}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {prepareExpenseByCategory().map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
 
+          <Card>
             {/* Monthly Income vs Expenses */}
-            <Card bg={cardBg}>
-              <CardHeader>
-                <Heading size="md">Monthly Trend</Heading>
-              </CardHeader>
-              <CardBody>
-                {prepareMonthlyTrend().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={prepareMonthlyTrend()}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, '']} />
-                      <Legend />
-                      <Bar dataKey="income" fill="#00C49F" name="Income" />
-                      <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No monthly data available yet.
-                  </Alert>
-                )}
-              </CardBody>
-            </Card>
+            <CardHeader pb={2}>
+              <Heading size="md">Monthly Trends</Heading>
+            </CardHeader>
+            <CardBody>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={prepareMonthlyTrend()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']} />
+                  <Legend />
+                  <Bar dataKey="income" fill="#48BB78" />
+                  <Bar dataKey="expenses" fill="#F56565" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
 
+          <Card>
             {/* Weekly Spending Pattern */}
-            <Card bg={cardBg}>
-              <CardHeader>
-                <Heading size="md">Weekly Spending Pattern</Heading>
-              </CardHeader>
-              <CardBody>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={prepareWeeklySpending()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Spent']} />
-                    <Area type="monotone" dataKey="amount" stroke="#8884d8" fill="#8884d8" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardBody>
-            </Card>
+            <CardHeader pb={2}>
+              <Heading size="md">Weekly Spending</Heading>
+            </CardHeader>
+            <CardBody>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={prepareWeeklySpending()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']} />
+                  <Area type="monotone" dataKey="amount" stroke="#8884d8" fill="#8884d8" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
 
+          <Card>
             {/* Spending Trends Line Chart */}
-            <Card bg={cardBg}>
-              <CardHeader>
-                <Heading size="md">Spending Trends</Heading>
-              </CardHeader>
-              <CardBody>
-                {prepareMonthlyTrend().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={prepareMonthlyTrend()}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, '']} />
-                      <Legend />
-                      <Line type="monotone" dataKey="expenses" stroke="#FF8042" strokeWidth={2} name="Expenses" />
-                      <Line type="monotone" dataKey="income" stroke="#00C49F" strokeWidth={2} name="Income" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No trend data available yet.
-                  </Alert>
-                )}
-              </CardBody>
-            </Card>
-          </Grid>
-        )}
+            <CardHeader pb={2}>
+              <Heading size="md">Spending Trends</Heading>
+            </CardHeader>
+            <CardBody>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={prepareMonthlyTrend()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']} />
+                  <Legend />
+                  <Line type="monotone" dataKey="expenses" stroke="#F56565" strokeWidth={2} />
+                  <Line type="monotone" dataKey="income" stroke="#48BB78" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
+
+        {/* AI Insights Section */}
+        <Box mb={8}>
+          <AIInsights />
+        </Box>
 
         {/* Recent Transactions */}
         {analytics?.recent_transactions?.length > 0 && (
