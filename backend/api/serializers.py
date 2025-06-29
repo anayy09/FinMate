@@ -104,6 +104,8 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
 class BudgetSerializer(serializers.ModelSerializer):
     """Serializer for budgets."""
     category_name = serializers.CharField(source='category.name', read_only=True)
+    spent_amount = serializers.SerializerMethodField()
+    remaining_amount = serializers.SerializerMethodField()
     percentage_used = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     
@@ -113,11 +115,38 @@ class BudgetSerializer(serializers.ModelSerializer):
             'id', 'category', 'category_name', 'amount', 'spent_amount', 
             'remaining_amount', 'percentage_used', 'status', 'month'
         ]
-        read_only_fields = ['spent_amount', 'remaining_amount']
+    
+    def get_spent_amount(self, obj):
+        from django.db.models import Sum
+        from datetime import datetime
+        
+        # Calculate start and end of the month
+        month_start = obj.month
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
+        
+        # Get total expenses for this category in this month
+        spent = Transaction.objects.filter(
+            user=obj.user,
+            category=obj.category,
+            transaction_type='expense',
+            transaction_date__gte=month_start,
+            transaction_date__lt=month_end
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        return str(spent)
+    
+    def get_remaining_amount(self, obj):
+        spent_decimal = Decimal(self.get_spent_amount(obj))
+        remaining = max(obj.amount - spent_decimal, Decimal('0.00'))
+        return str(remaining)
     
     def get_percentage_used(self, obj):
+        spent_decimal = Decimal(self.get_spent_amount(obj))
         if obj.amount > 0:
-            return min(float(obj.spent_amount / obj.amount * 100), 100)
+            return min(float(spent_decimal / obj.amount * 100), 100)
         return 0
     
     def get_status(self, obj):
