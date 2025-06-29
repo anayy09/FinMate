@@ -278,7 +278,7 @@ const BudgetsPage = () => {
                   <Stat>
                     <StatLabel>Total Spent</StatLabel>
                     <StatNumber>
-                      ${budgets.reduce((sum, budget) => sum + parseFloat(budget.spent || 0), 0).toFixed(2)}
+                      ${budgets.reduce((sum, budget) => sum + parseFloat(budget.spent_amount || 0), 0).toFixed(2)}
                     </StatNumber>
                     <StatHelpText>This month</StatHelpText>
                   </Stat>
@@ -290,7 +290,7 @@ const BudgetsPage = () => {
                     <StatLabel>Remaining</StatLabel>
                     <StatNumber>
                       ${(budgets.reduce((sum, budget) => sum + parseFloat(budget.amount || 0), 0) - 
-                         budgets.reduce((sum, budget) => sum + parseFloat(budget.spent || 0), 0)).toFixed(2)}
+                         budgets.reduce((sum, budget) => sum + parseFloat(budget.spent_amount || 0), 0)).toFixed(2)}
                     </StatNumber>
                     <StatHelpText>
                       <StatArrow type="increase" />
@@ -323,7 +323,7 @@ const BudgetsPage = () => {
             ) : (
               <Grid templateColumns="repeat(auto-fill, minmax(350px, 1fr))" gap={6}>
                 {budgets.map((budget) => {
-                  const spent = parseFloat(budget.spent || 0);
+                  const spent = parseFloat(budget.spent_amount || 0);
                   const budgetAmount = parseFloat(budget.amount || 0);
                   const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
                   const status = getBudgetStatus(spent, budgetAmount);
@@ -333,7 +333,7 @@ const BudgetsPage = () => {
                       <CardHeader>
                         <HStack justify="space-between" align="start">
                           <VStack align="start" spacing={1}>
-                            <Heading size="md">{getCategoryName(budget.category)}</Heading>
+                            <Heading size="md">{budget.category_name}</Heading>
                             <Text color="gray.500" fontSize="sm">
                               {budget.month}
                             </Text>
