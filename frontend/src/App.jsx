@@ -11,6 +11,8 @@ import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import RecurringTransactionsPage from "./pages/RecurringTransactionsPage";
+import BudgetsPage from "./pages/BudgetsPage";
+import AccountsPage from "./pages/AccountsPage";
 
 export default function App() {
   return (
@@ -41,6 +43,16 @@ export default function App() {
           <Route path="/recurring-transactions" element={
             <ProtectedRoute>
               <RecurringTransactionsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/budgets" element={
+            <ProtectedRoute>
+              <BudgetsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/accounts" element={
+            <ProtectedRoute>
+              <AccountsPage />
             </ProtectedRoute>
           } />
         </Routes>
