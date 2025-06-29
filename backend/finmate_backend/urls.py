@@ -8,7 +8,8 @@ from api.views import (
     CategoryViewSet, AccountViewSet, TransactionViewSet, BudgetViewSet, RecurringTransactionViewSet,
     NotificationViewSet, NotificationPreferenceViewSet, AIInsightViewSet, 
     SavingsGoalViewSet, ExpensePredictionView, AnomalyDetectionView,
-    BudgetInsightsView, WeeklySummaryView
+    BudgetInsightsView, WeeklySummaryView, FinancialReportsView, EmailReportsView,
+    PlaidAccountSyncView, BankAccountManagementView
 )
 from api.plaid_views import (
     create_link_token, exchange_public_token, sync_transactions, disconnect_account
@@ -58,4 +59,13 @@ urlpatterns = [
     path('api/anomaly-detection/', AnomalyDetectionView.as_view(), name='anomaly_detection'),
     path('api/budget-insights/', BudgetInsightsView.as_view(), name='budget_insights'),
     path('api/weekly-summary/', WeeklySummaryView.as_view(), name='weekly_summary'),
+    
+    # Financial Reports endpoints
+    path('api/reports/', FinancialReportsView.as_view(), name='financial_reports'),
+    path('api/reports/email/', EmailReportsView.as_view(), name='email_reports'),
+    
+    # Enhanced Bank Sync endpoints
+    path('api/plaid/sync/', PlaidAccountSyncView.as_view(), name='plaid_sync'),
+    path('api/bank-accounts/', BankAccountManagementView.as_view(), name='bank_accounts'),
+    path('api/bank-accounts/<int:account_id>/', BankAccountManagementView.as_view(), name='bank_account_detail'),
 ]
