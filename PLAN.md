@@ -120,10 +120,10 @@ This project aims to develop a **Personal Finance Management System** that helps
 - ✅ Implement **email report distribution**.
 - ✅ Improve **Plaid API integration for automatic transaction imports**.
 - ✅ Finalize **settings UI** (user profile editing, connected bank accounts, reports download).
+
+### **Final Tasks and Deployment**
+
 - ✅ Check for any **bugs** (backend API endpoints, frontend UI/UX, payment integration).
-- ✅ **Comprehensive testing** (unit, integration, security testing).
-
-### **Final Verifications and Deployment**
-
 - ✅ Verify all the tasks to be completed.
+- ✅ **Comprehensive testing** (unit, integration, security testing).
 - ✅ **Final deployment** on Render & Vercel.
