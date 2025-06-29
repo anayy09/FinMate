@@ -21,6 +21,10 @@ export const signup = async (userData) => {
 export const login = async (userData) => {
   try {
     const response = await authApi.post("/login/", userData);
+    if (response.data.access) {
+      localStorage.setItem("access_token", response.data.access);
+      localStorage.setItem("refresh_token", response.data.refresh);
+    }
     return response.data;
   } catch (error) {
     throw error.response.data;
@@ -30,10 +34,17 @@ export const login = async (userData) => {
 // Logout API call
 export const logout = async () => {
   try {
-    await authApi.post("/logout/");
+    const token = localStorage.getItem("refresh_token");
+    if (token) {
+      await authApi.post("/logout/", { refresh: token });
+    }
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     return { message: "Logged out successfully" };
   } catch (error) {
-    throw error.response.data;
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    throw error.response?.data || { message: "Logout failed" };
   }
 };
 
