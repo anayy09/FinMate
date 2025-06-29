@@ -134,8 +134,12 @@ WSGI_APPLICATION = 'finmate_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME', default='finmate_db'),
+        'USER': env('DB_USER', default='finmate_user'),
+        'PASSWORD': env('DB_PASSWORD', default='finmate_password'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='5432'),
     }
 }
 
