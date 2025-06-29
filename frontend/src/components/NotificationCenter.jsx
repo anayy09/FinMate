@@ -6,7 +6,7 @@ import {
   Text,
   Badge,
   Icon,
-  Button,
+  IconButton,
   Alert,
   AlertIcon,
   AlertTitle,
@@ -21,7 +21,9 @@ import {
   ModalCloseButton,
   useDisclosure,
   Spinner,
-  useToast
+  useToast,
+  Tooltip,
+  Button
 } from '@chakra-ui/react';
 import {
   FaBell,
@@ -145,6 +147,10 @@ const NotificationCenter = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const toast = useToast();
   
+  // Use consistent navbar styling
+  const hoverBg = useColorModeValue("gray.50", "gray.800");
+  const color = useColorModeValue("gray.700", "gray.100");
+  
   const fetchNotifications = async () => {
     setLoading(true);
     try {
@@ -215,32 +221,41 @@ const NotificationCenter = () => {
   }, []);
   
   return (
-    <>
-      <Button
-        variant="ghost"
-        onClick={onOpen}
-        position="relative"
-        aria-label="Notifications"
-      >
-        <Icon as={FaBell} />
-        {unreadCount > 0 && (
-          <Badge
-            position="absolute"
-            top="-1"
-            right="-1"
-            colorScheme="red"
-            borderRadius="full"
-            fontSize="xs"
-            minW="20px"
-            h="20px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </Badge>
-        )}
-      </Button>
+    <Box position="relative">
+      <Tooltip label={`${unreadCount > 0 ? unreadCount : 'No'} new notifications`} hasArrow>
+        <IconButton
+          variant="ghost"
+          size="md"
+          color={color}
+          onClick={onOpen}
+          aria-label="Notifications"
+          icon={<Icon as={FaBell} />}
+          _hover={{ 
+            bg: hoverBg,
+            transform: "translateY(-1px)"
+          }}
+          _active={{ transform: "translateY(0)" }}
+          transition="all 0.2s"
+        />
+      </Tooltip>
+      {unreadCount > 0 && (
+        <Badge
+          position="absolute"
+          top="-1"
+          right="-1"
+          colorScheme="red"
+          borderRadius="full"
+          fontSize="xs"
+          minW="20px"
+          h="20px"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          zIndex={1}
+        >
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </Badge>
+      )}
       
       <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
         <ModalOverlay />
@@ -285,7 +300,7 @@ const NotificationCenter = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
-    </>
+    </Box>
   );
 };
 

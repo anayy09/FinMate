@@ -86,7 +86,7 @@ export default function Navbar() {
     <>
       <Box
         bg={bg}
-        px={8}
+        px={{ base: 4, md: 8 }}
         py={4}
         boxShadow="sm"
         borderBottom="1px"
@@ -96,6 +96,10 @@ export default function Navbar() {
         top={0}
         zIndex={1000}
         backdropFilter="blur(10px)"
+        bgGradient={useColorModeValue(
+          "linear(to-r, white, gray.50)",
+          "linear(to-r, gray.900, gray.800)"
+        )}
       >
         <Flex align="center" mx="auto">
           {/* Logo */}
@@ -146,7 +150,7 @@ export default function Navbar() {
           <Spacer />
 
           {/* Right side controls */}
-          <HStack spacing={4}>
+          <HStack spacing={2}>
             {user ? (
               <>
                 {/* Mobile menu button */}
@@ -154,7 +158,15 @@ export default function Navbar() {
                   aria-label="Open navigation menu"
                   icon={<FiMenu />}
                   variant="ghost"
+                  size="md"
+                  color={color}
                   display={{ base: "flex", lg: "none" }}
+                  _hover={{ 
+                    bg: hoverBg,
+                    transform: "translateY(-1px)"
+                  }}
+                  _active={{ transform: "translateY(0)" }}
+                  transition="all 0.2s"
                   onClick={onOpen}
                 />
 
@@ -280,16 +292,27 @@ export default function Navbar() {
                 <ThemeToggle />
                 <Button
                   variant="ghost"
+                  size="md"
+                  color={color}
                   onClick={() => navigate("/login")}
-                  _hover={{ bg: hoverBg }}
+                  _hover={{ 
+                    bg: hoverBg,
+                    transform: "translateY(-1px)"
+                  }}
+                  _active={{ transform: "translateY(0)" }}
+                  transition="all 0.2s"
                 >
                   Login
                 </Button>
                 <Button
                   colorScheme="blue"
+                  size="md"
                   onClick={() => navigate("/signup")}
                   bg={activeColor}
-                  _hover={{ transform: "translateY(-1px)", boxShadow: "lg" }}
+                  _hover={{ 
+                    transform: "translateY(-1px)", 
+                    boxShadow: "lg" 
+                  }}
                   transition="all 0.2s"
                 >
                   Sign Up

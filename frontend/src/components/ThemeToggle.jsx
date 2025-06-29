@@ -1,19 +1,29 @@
-import { Button, Flex, useColorMode, useColorModeValue } from "@chakra-ui/react";
+import { IconButton, useColorMode, useColorModeValue, Tooltip } from "@chakra-ui/react";
 import { BsSun, BsMoonStarsFill } from "react-icons/bs";
 
 export default function ThemeToggle() {
   const { colorMode, toggleColorMode } = useColorMode();
+  
+  // Use consistent navbar styling
+  const hoverBg = useColorModeValue("gray.50", "gray.800");
+  const color = useColorModeValue("gray.700", "gray.100");
 
   return (
-    <Button
-      aria-label="Toggle Theme"
-      onClick={toggleColorMode}
-      bg={useColorModeValue("brand.500", "gray.700")}
-      color="white"
-      _hover={{ bg: useColorModeValue("gray.700", "brand.500") }}
-      borderRadius={999}
-    >
-      {colorMode === "light" ? <BsMoonStarsFill /> : <BsSun />}
-    </Button>
+    <Tooltip label={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`} hasArrow>
+      <IconButton
+        aria-label="Toggle Theme"
+        icon={colorMode === "light" ? <BsMoonStarsFill /> : <BsSun />}
+        onClick={toggleColorMode}
+        variant="ghost"
+        size="md"
+        color={color}
+        _hover={{ 
+          bg: hoverBg,
+          transform: "translateY(-1px)"
+        }}
+        _active={{ transform: "translateY(0)" }}
+        transition="all 0.2s"
+      />
+    </Tooltip>
   );
 }
