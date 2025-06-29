@@ -568,3 +568,296 @@ def update_savings_goals():
     
     logger.info(f"Updated {updated_count} savings goals")
     return updated_count
+
+
+@shared_task
+def send_financial_report_email(user_id, email, report_type='monthly', report_format='pdf', period='this_month'):
+    """Generate and email financial reports to users."""
+    try:
+        from django.core.mail import EmailMessage
+        from .reports import FinancialReportGenerator, WeeklyReportGenerator, MonthlyReportGenerator
+        
+        user = User.objects.get(id=user_id)
+        logger.info(f"Generating {report_type} {report_format} report for user {user.email}")
+        
+        # Determine which generator to use
+        if period == 'this_week':
+            generator = WeeklyReportGenerator(user)
+        elif period == 'last_week':
+            generator = WeeklyReportGenerator(user, week_offset=-1)
+        elif period == 'this_month':
+            generator = MonthlyReportGenerator(user)
+        elif period == 'last_month':
+            generator = MonthlyReportGenerator(user, month_offset=-1)
+        else:
+            generator = MonthlyReportGenerator(user)
+        
+        # Get report data
+        data = generator.get_report_data()
+        
+        # Create email
+        subject = f"FinMate Financial Report - {period.replace('_', ' ').title()}"
+        message = f"""
+        Hi {user.first_name or user.email},
+
+        Your financial report for {period.replace('_', ' ')} is attached.
+
+        Report Summary:
+        • Period: {data['period']['start_date'].strftime('%B %d, %Y')} to {data['period']['end_date'].strftime('%B %d, %Y')}
+        • Total Income: ${data['summary']['total_income']:,.2f}
+        • Total Expenses: ${data['summary']['total_expenses']:,.2f}
+        • Net Income: ${data['summary']['net_income']:,.2f}
+        • Total Transactions: {data['summary']['transaction_count']:,}
+
+        Thank you for using FinMate!
+
+        Best regards,
+        The FinMate Team
+        """
+        
+        email_msg = EmailMessage(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email]
+        )
+        
+        # Generate and attach report
+        if report_format.lower() == 'csv':
+            # Generate CSV content
+            import io
+            csv_content = io.StringIO()
+            csv_content.write("FINANCIAL REPORT SUMMARY\n")
+            csv_content.write(f"Period: {data['period']['start_date'].strftime('%Y-%m-%d')} to {data['period']['end_date'].strftime('%Y-%m-%d')}\n")
+            csv_content.write(f"Total Income: ${data['summary']['total_income']}\n")
+            csv_content.write(f"Total Expenses: ${data['summary']['total_expenses']}\n")
+            csv_content.write(f"Net Income: ${data['summary']['net_income']}\n")
+            
+            # Add detailed transaction data
+            csv_content.write("\nALL TRANSACTIONS\n")
+            csv_content.write("Date,Description,Type,Amount,Category,Account\n")
+            for transaction in data['transactions']:
+                csv_content.write(f"{transaction['date']},{transaction['description']},{transaction['type']},${transaction['amount']},{transaction['category__name']},{transaction['account__name']}\n")
+            
+            filename = f"financial_report_{data['period']['start_date'].strftime('%Y%m%d')}_to_{data['period']['end_date'].strftime('%Y%m%d')}.csv"
+            email_msg.attach(filename, csv_content.getvalue(), 'text/csv')
+        
+        else:
+            # Generate PDF
+            response = generator.generate_pdf_report()
+            filename = f"financial_report_{data['period']['start_date'].strftime('%Y%m%d')}_to_{data['period']['end_date'].strftime('%Y%m%d')}.pdf"
+            
+            # Read the PDF content from the response
+            response.seek(0)
+            pdf_content = response.read()
+            email_msg.attach(filename, pdf_content, 'application/pdf')
+        
+        # Send email
+        email_msg.send()
+        
+        logger.info(f"Financial report emailed successfully to {email}")
+        return f"Report sent to {email}"
+        
+    except Exception as e:
+        logger.error(f"Error sending financial report email: {str(e)}")
+        raise
+
+
+@shared_task
+def sync_plaid_transactions(user_id, account_id=None, force_sync=False):
+    """Enhanced Plaid transaction sync with error handling and deduplication."""
+    try:
+        from plaid.api import plaid_api
+        from plaid.model.transactions_get_request import TransactionsGetRequest
+        from plaid.model.accounts_get_request import AccountsGetRequest
+        from plaid.configuration import Configuration
+        from plaid.api_client import ApiClient
+        from datetime import datetime, timedelta
+        
+        user = User.objects.get(id=user_id)
+        logger.info(f"Starting Plaid sync for user {user.email}")
+        
+        # Get Plaid accounts
+        plaid_accounts = Account.objects.filter(
+            user=user,
+            is_plaid_account=True
+        )
+        
+        if account_id:
+            plaid_accounts = plaid_accounts.filter(id=account_id)
+        
+        if not plaid_accounts.exists():
+            logger.warning(f"No Plaid accounts found for user {user.email}")
+            return "No Plaid accounts to sync"
+        
+        # Initialize Plaid client
+        configuration = Configuration(
+            host=getattr(settings, 'PLAID_ENV', 'sandbox'),  # sandbox, development, production
+            api_key={
+                'clientId': settings.PLAID_CLIENT_ID,
+                'secret': settings.PLAID_SECRET,
+            }
+        )
+        api_client = ApiClient(configuration)
+        client = plaid_api.PlaidApi(api_client)
+        
+        total_synced = 0
+        
+        for account in plaid_accounts:
+            try:
+                # Determine sync date range
+                if force_sync or not hasattr(account, 'last_plaid_sync') or account.last_plaid_sync is None:
+                    # Full sync - get last 90 days
+                    start_date = datetime.now() - timedelta(days=90)
+                else:
+                    # Incremental sync from last sync
+                    start_date = account.last_plaid_sync
+                
+                end_date = datetime.now()
+                
+                # Get transactions from Plaid
+                request = TransactionsGetRequest(
+                    access_token=account.plaid_access_token,
+                    start_date=start_date.date(),
+                    end_date=end_date.date(),
+                    account_ids=[account.plaid_account_id] if account.plaid_account_id else None
+                )
+                
+                response = client.transactions_get(request)
+                transactions = response['transactions']
+                
+                synced_count = 0
+                
+                # Process each transaction
+                for plaid_transaction in transactions:
+                    # Check if transaction already exists
+                    existing_transaction = Transaction.objects.filter(
+                        user=user,
+                        plaid_transaction_id=plaid_transaction['transaction_id']
+                    ).first()
+                    
+                    if existing_transaction:
+                        # Update existing transaction if needed
+                        if existing_transaction.amount != abs(plaid_transaction['amount']):
+                            existing_transaction.amount = abs(plaid_transaction['amount'])
+                            existing_transaction.save()
+                            synced_count += 1
+                        continue
+                    
+                    # Create new transaction
+                    try:
+                        # Determine transaction type
+                        transaction_type = 'expense' if plaid_transaction['amount'] > 0 else 'income'
+                        
+                        # Get or create category
+                        category_name = plaid_transaction['category'][0] if plaid_transaction['category'] else 'Other'
+                        category, created = Category.objects.get_or_create(
+                            user=user,
+                            name=category_name,
+                            defaults={'category_type': transaction_type}
+                        )
+                        
+                        # Create transaction
+                        Transaction.objects.create(
+                            user=user,
+                            account=account,
+                            category=category,
+                            description=plaid_transaction['name'],
+                            amount=abs(plaid_transaction['amount']),
+                            type=transaction_type,
+                            date=plaid_transaction['date'],
+                            plaid_transaction_id=plaid_transaction['transaction_id'],
+                            is_plaid_transaction=True
+                        )
+                        
+                        synced_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Error creating transaction {plaid_transaction['transaction_id']}: {str(e)}")
+                        continue
+                
+                # Update last sync time
+                account.last_plaid_sync = timezone.now()
+                account.save()
+                
+                total_synced += synced_count
+                logger.info(f"Synced {synced_count} transactions for account {account.name}")
+                
+                # Update account balance from Plaid
+                try:
+                    accounts_request = AccountsGetRequest(access_token=account.plaid_access_token)
+                    accounts_response = client.accounts_get(accounts_request)
+                    
+                    for plaid_account in accounts_response['accounts']:
+                        if plaid_account['account_id'] == account.plaid_account_id:
+                            account.balance = plaid_account['balances']['current']
+                            account.save()
+                            break
+                            
+                except Exception as e:
+                    logger.error(f"Error updating account balance: {str(e)}")
+                
+            except Exception as e:
+                logger.error(f"Error syncing account {account.id}: {str(e)}")
+                continue
+        
+        logger.info(f"Plaid sync completed. Total transactions synced: {total_synced}")
+        return f"Synced {total_synced} transactions"
+        
+    except Exception as e:
+        logger.error(f"Error in Plaid sync task: {str(e)}")
+        raise
+
+
+@shared_task
+def disconnect_plaid_account(account_id):
+    """Safely disconnect a Plaid account."""
+    try:
+        account = Account.objects.get(id=account_id)
+        logger.info(f"Disconnecting Plaid account {account.name}")
+        
+        # Mark Plaid transactions as disconnected but don't delete them
+        Transaction.objects.filter(
+            account=account,
+            is_plaid_transaction=True
+        ).update(is_plaid_transaction=False)
+        
+        # Clear Plaid-specific fields
+        account.is_plaid_account = False
+        account.plaid_account_id = None
+        account.plaid_access_token = None
+        account.last_plaid_sync = None
+        account.save()
+        
+        logger.info(f"Successfully disconnected Plaid account {account.name}")
+        return f"Disconnected account {account.name}"
+        
+    except Exception as e:
+        logger.error(f"Error disconnecting Plaid account: {str(e)}")
+        raise
+
+
+@shared_task
+def auto_sync_all_plaid_accounts():
+    """Daily task to automatically sync all Plaid accounts."""
+    logger.info("Starting automatic Plaid sync for all users")
+    
+    # Get all users with Plaid accounts that have auto-sync enabled
+    users_with_plaid = User.objects.filter(
+        accounts__is_plaid_account=True,
+        accounts__auto_sync_enabled=True
+    ).distinct()
+    
+    total_synced = 0
+    
+    for user in users_with_plaid:
+        try:
+            result = sync_plaid_transactions.delay(user.id)
+            total_synced += 1
+            logger.info(f"Queued sync for user {user.email}")
+            
+        except Exception as e:
+            logger.error(f"Error queueing sync for user {user.email}: {str(e)}")
+    
+    logger.info(f"Queued automatic sync for {total_synced} users")
+    return f"Queued sync for {total_synced} users"
