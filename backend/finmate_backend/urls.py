@@ -7,6 +7,9 @@ from api.views import (
     Setup2FAView, Verify2FAView, Disable2FAView,
     CategoryViewSet, AccountViewSet, TransactionViewSet, BudgetViewSet, RecurringTransactionViewSet
 )
+from api.plaid_views import (
+    create_link_token, exchange_public_token, sync_transactions, disconnect_account
+)
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -31,6 +34,12 @@ urlpatterns = [
     path('api/auth/setup-2fa/', Setup2FAView.as_view(), name='setup_2fa'),
     path('api/auth/verify-2fa/', Verify2FAView.as_view(), name='verify_2fa'),
     path('api/auth/disable-2fa/', Disable2FAView.as_view(), name='disable_2fa'),
+    
+    # Plaid integration endpoints
+    path('api/plaid/create-link-token/', create_link_token, name='create_link_token'),
+    path('api/plaid/exchange-public-token/', exchange_public_token, name='exchange_public_token'),
+    path('api/plaid/sync-transactions/', sync_transactions, name='sync_transactions'),
+    path('api/plaid/disconnect-account/<int:account_id>/', disconnect_account, name='disconnect_account'),
     
     # Transaction management endpoints
     path('api/', include(router.urls)),
