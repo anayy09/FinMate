@@ -11,6 +11,7 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
+  StatArrow,
   useColorModeValue,
   Container,
   Card,
@@ -22,10 +23,37 @@ import {
   Spinner,
   Alert,
   AlertIcon,
+  Select,
+  VStack,
+  HStack,
+  Spacer,
+  Icon,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+} from 'recharts';
+import { FaWallet, FaUniversity, FaChartLine, FaPlus } from 'react-icons/fa';
 import Navbar from "../components/Navbar";
+import PlaidIntegration from "../components/PlaidIntegration";
 import { getTransactionAnalytics, getAccounts } from "../api/transactions";
+import api from "../api/auth";
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -36,8 +64,11 @@ export default function DashboardPage() {
   
   const [analytics, setAnalytics] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState('30');
+  const [showPlaidIntegration, setShowPlaidIntegration] = useState(false);
 
   // Show loading state while authentication is being checked
   if (loading) {
@@ -55,12 +86,14 @@ export default function DashboardPage() {
     const fetchDashboardData = async () => {
       try {
         setAnalyticsLoading(true);
-        const [analyticsData, accountsData] = await Promise.all([
+        const [analyticsData, accountsData, transactionsData] = await Promise.all([
           getTransactionAnalytics(),
-          getAccounts()
+          getAccounts(),
+          api.get(`/api/transactions/?days=${selectedPeriod}`)
         ]);
         setAnalytics(analyticsData);
         setAccounts(accountsData.results || accountsData);
+        setTransactions(transactionsData.data.results || transactionsData.data);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setError("Failed to load dashboard data");
@@ -70,13 +103,96 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [selectedPeriod]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount || 0);
+  };
+
+  const prepareExpenseByCategory = () => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    const categoryExpenses = {};
+    
+    transactions
+      .filter(transaction => transaction.transaction_type === 'expense')
+      .forEach(transaction => {
+        const categoryName = transaction.category?.name || 'Uncategorized';
+        categoryExpenses[categoryName] = (categoryExpenses[categoryName] || 0) + parseFloat(transaction.amount);
+      });
+
+    return Object.entries(categoryExpenses).map(([name, value]) => ({
+      name,
+      value: parseFloat(value.toFixed(2)),
+    }));
+  };
+
+  const prepareMonthlyTrend = () => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    const monthlyData = {};
+    
+    transactions.forEach(transaction => {
+      const date = new Date(transaction.transaction_date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { month: monthKey, income: 0, expenses: 0 };
+      }
+      
+      if (transaction.transaction_type === 'income') {
+        monthlyData[monthKey].income += parseFloat(transaction.amount);
+      } else if (transaction.transaction_type === 'expense') {
+        monthlyData[monthKey].expenses += parseFloat(transaction.amount);
+      }
+    });
+
+    return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+  };
+
+  const prepareWeeklySpending = () => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    const weeklyData = {};
+    const now = new Date();
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dayKey = date.toISOString().split('T')[0];
+      weeklyData[dayKey] = {
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        amount: 0,
+      };
+    }
+
+    transactions
+      .filter(transaction => transaction.transaction_type === 'expense')
+      .forEach(transaction => {
+        const dateKey = transaction.transaction_date;
+        if (weeklyData[dateKey]) {
+          weeklyData[dateKey].amount += parseFloat(transaction.amount);
+        }
+      });
+
+    return Object.values(weeklyData).reverse();
+  };
+
+  const handleAccountsUpdated = (newAccounts) => {
+    setAccounts(prev => [...prev, ...newAccounts]);
+    // Refresh analytics after account update
+    const fetchAnalytics = async () => {
+      try {
+        const analyticsData = await getTransactionAnalytics();
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error("Error refreshing analytics:", error);
+      }
+    };
+    fetchAnalytics();
   };
 
   if (analyticsLoading) {
@@ -119,24 +235,51 @@ export default function DashboardPage() {
               Here's what's happening with your finances today.
             </Text>
           </Box>
-          <Flex gap={3}>
+          <HStack spacing={4}>
+            <Select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              width="200px"
+              size="sm"
+            >
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 3 months</option>
+              <option value="365">Last year</option>
+            </Select>
             <Button
               colorScheme="blue"
+              leftIcon={<Icon as={FaUniversity} />}
+              onClick={() => setShowPlaidIntegration(!showPlaidIntegration)}
+              size="sm"
+            >
+              {showPlaidIntegration ? 'Hide' : 'Connect'} Bank
+            </Button>
+            <Button
+              colorScheme="green"
+              leftIcon={<Icon as={FaPlus} />}
               onClick={() => navigate("/transactions")}
+              size="sm"
             >
               Add Transaction
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/settings")}
-            >
-              Settings
-            </Button>
-          </Flex>
+          </HStack>
         </Flex>
 
+        {/* Plaid Integration */}
+        {showPlaidIntegration && (
+          <Card mb={8} bg={cardBg}>
+            <CardBody>
+              <PlaidIntegration
+                accounts={accounts}
+                onAccountsUpdated={handleAccountsUpdated}
+              />
+            </CardBody>
+          </Card>
+        )}
+
         {/* Financial Overview */}
-        <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={6} mb={8}>
+        <Grid templateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }} gap={6} mb={8}>
           <Stat
             px={6}
             py={4}
@@ -148,7 +291,10 @@ export default function DashboardPage() {
             <StatNumber color="green.500">
               {formatCurrency(analytics?.total_income)}
             </StatNumber>
-            <StatHelpText>This month</StatHelpText>
+            <StatHelpText>
+              <StatArrow type="increase" />
+              This month
+            </StatHelpText>
           </Stat>
 
           <Stat
@@ -162,7 +308,10 @@ export default function DashboardPage() {
             <StatNumber color="red.500">
               {formatCurrency(analytics?.total_expenses)}
             </StatNumber>
-            <StatHelpText>This month</StatHelpText>
+            <StatHelpText>
+              <StatArrow type="decrease" />
+              This month
+            </StatHelpText>
           </Stat>
 
           <Stat
@@ -178,6 +327,23 @@ export default function DashboardPage() {
             </StatNumber>
             <StatHelpText>Income - Expenses</StatHelpText>
           </Stat>
+
+          <Stat
+            px={6}
+            py={4}
+            bg={cardBg}
+            shadow="md"
+            rounded="lg"
+          >
+            <StatLabel>Total Balance</StatLabel>
+            <StatNumber color="blue.500">
+              <Icon as={FaWallet} mr={2} />
+              {formatCurrency(accounts.reduce((sum, acc) => sum + parseFloat(acc.balance || 0), 0))}
+            </StatNumber>
+            <StatHelpText>
+              Across {accounts.length} accounts
+            </StatHelpText>
+          </Stat>
         </Grid>
 
         {/* Accounts Overview */}
@@ -190,12 +356,17 @@ export default function DashboardPage() {
               <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                 {accounts.map((account) => (
                   <Box key={account.id} p={4} border="1px" borderColor="gray.200" rounded="md">
-                    <Text fontWeight="bold">{account.name}</Text>
+                    <HStack justify="space-between" mb={2}>
+                      <Text fontWeight="bold">{account.name}</Text>
+                      {account.plaid_account_id && (
+                        <Badge colorScheme="green" size="sm">Connected</Badge>
+                      )}
+                    </HStack>
                     <Text fontSize="sm" color="gray.500" mb={2}>
                       {account.account_type.replace('_', ' ').toUpperCase()}
                     </Text>
-                    <Text fontSize="lg" fontWeight="bold">
-                      {account.balance_display}
+                    <Text fontSize="lg" fontWeight="bold" color={parseFloat(account.balance) >= 0 ? "green.500" : "red.500"}>
+                      {account.balance_display || formatCurrency(account.balance)}
                     </Text>
                   </Box>
                 ))}
@@ -204,33 +375,116 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Category Breakdown */}
-        {analytics?.category_breakdown?.length > 0 && (
-          <Card mb={8} bg={cardBg}>
-            <CardHeader>
-              <Heading size="md">Spending by Category</Heading>
-            </CardHeader>
-            <CardBody>
-              <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={4}>
-                {analytics.category_breakdown.slice(0, 6).map((category) => (
-                  <Flex key={category.category_id} justify="space-between" align="center" p={3} border="1px" borderColor="gray.200" rounded="md">
-                    <Box>
-                      <Text fontWeight="medium">{category.category__name || 'Uncategorized'}</Text>
-                      <Text fontSize="sm" color="gray.500">
-                        {category.transaction_count} transactions
-                      </Text>
-                    </Box>
-                    <Box textAlign="right">
-                      <Text fontWeight="bold">{formatCurrency(category.total_amount)}</Text>
-                      <Badge colorScheme="blue" size="sm">
-                        {category.percentage?.toFixed(1)}%
-                      </Badge>
-                    </Box>
-                  </Flex>
-                ))}
-              </Grid>
-            </CardBody>
-          </Card>
+        {/* Advanced Charts Section */}
+        {transactions.length > 0 && (
+          <Grid templateColumns={{ base: "1fr", lg: "repeat(2, 1fr)" }} gap={6} mb={8}>
+            {/* Expenses by Category Pie Chart */}
+            <Card bg={cardBg}>
+              <CardHeader>
+                <Heading size="md">Expenses by Category</Heading>
+              </CardHeader>
+              <CardBody>
+                {prepareExpenseByCategory().length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={prepareExpenseByCategory()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {prepareExpenseByCategory().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Alert status="info">
+                    <AlertIcon />
+                    No expense data available for the selected period.
+                  </Alert>
+                )}
+              </CardBody>
+            </Card>
+
+            {/* Monthly Income vs Expenses */}
+            <Card bg={cardBg}>
+              <CardHeader>
+                <Heading size="md">Monthly Trend</Heading>
+              </CardHeader>
+              <CardBody>
+                {prepareMonthlyTrend().length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={prepareMonthlyTrend()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`$${value}`, '']} />
+                      <Legend />
+                      <Bar dataKey="income" fill="#00C49F" name="Income" />
+                      <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Alert status="info">
+                    <AlertIcon />
+                    No monthly data available yet.
+                  </Alert>
+                )}
+              </CardBody>
+            </Card>
+
+            {/* Weekly Spending Pattern */}
+            <Card bg={cardBg}>
+              <CardHeader>
+                <Heading size="md">Weekly Spending Pattern</Heading>
+              </CardHeader>
+              <CardBody>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={prepareWeeklySpending()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${value}`, 'Spent']} />
+                    <Area type="monotone" dataKey="amount" stroke="#8884d8" fill="#8884d8" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardBody>
+            </Card>
+
+            {/* Spending Trends Line Chart */}
+            <Card bg={cardBg}>
+              <CardHeader>
+                <Heading size="md">Spending Trends</Heading>
+              </CardHeader>
+              <CardBody>
+                {prepareMonthlyTrend().length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={prepareMonthlyTrend()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`$${value}`, '']} />
+                      <Legend />
+                      <Line type="monotone" dataKey="expenses" stroke="#FF8042" strokeWidth={2} name="Expenses" />
+                      <Line type="monotone" dataKey="income" stroke="#00C49F" strokeWidth={2} name="Income" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Alert status="info">
+                    <AlertIcon />
+                    No trend data available yet.
+                  </Alert>
+                )}
+              </CardBody>
+            </Card>
+          </Grid>
         )}
 
         {/* Recent Transactions */}
