@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api"; // Change this to match your backend API
+const API_URL = "http://127.0.0.1:8000/api";
 
 const transactionApi = axios.create({
   baseURL: API_URL,
