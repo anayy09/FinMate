@@ -22,14 +22,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 environ.Env.read_env(str(BASE_DIR / '.env'))
 
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# EMAIL_HOST = os.getenv("EMAIL_HOST")
-# EMAIL_PORT = os.getenv("EMAIL_PORT")
-# EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
-# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-# DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env("EMAIL_PORT", default=25, cast=int)
+EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=False, cast=bool)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@finmate.com")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -272,11 +274,3 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# Email Configuration for Production (uncomment when ready)
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
-# EMAIL_PORT = env('EMAIL_PORT', default=587, cast=int)
-# EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True, cast=bool)
-# EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
-# EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-# DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@finmate.com')
