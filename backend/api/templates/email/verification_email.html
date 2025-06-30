@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif;">
+    <h2>Welcome to FinMate!</h2>
+    <p>Hi {{ user.first_name|default:user.email }},</p>
+    <p>Thank you for registering with FinMate. Please verify your email by clicking the button below:</p>
+    <p style="text-align:center;">
+      <a href="http://localhost:5173/verify-email/{{ user.verification_token }}" style="padding:10px 20px;background-color:#4CAF50;color:#fff;text-decoration:none;border-radius:4px;">Verify Email</a>
+    </p>
+    <p>If you did not create an account, please ignore this email.</p>
+    <p>Best regards,<br/>The FinMate Team</p>
+  </body>
+</html>
